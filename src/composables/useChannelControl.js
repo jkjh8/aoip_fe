@@ -1,13 +1,32 @@
 import { ref } from 'vue'
 import { socket } from 'src/boot/socket'
 
+/**
+ * 백엔드 gain 값(0~150 정수) → dB 변환
+ *   0       → -∞  (-60 표시)
+ *   0~100   → -60dB ~ 0dB  (선형)
+ *   100~150 → 0dB  ~ +6dB  (선형)
+ */
+export function gainToDb(gain) {
+  if (gain == null || gain <= 0) return -60
+  if (gain <= 100) return (gain / 100) * 60 - 60
+  return ((gain - 100) / 50) * 6
+}
+
+/** dB → gain 0~150 정수 */
+export function dbToGain(db) {
+  if (db <= -60) return 0
+  if (db <= 0) return Math.round((db + 60) / 60 * 100)
+  return Math.round(Math.min(150, (db / 6) * 50 + 100))
+}
+
 export function useChannelControl(type) {
   const editingId = ref(null)
   const editingVal = ref('')
 
   function toDb(gain) {
     if (gain == null || gain <= 0) return '-inf'
-    const db = 20 * Math.log10(gain / 100)
+    const db = gainToDb(gain)
     return (db >= 0 ? '+' : '') + db.toFixed(1) + ' dB'
   }
 
@@ -18,8 +37,8 @@ export function useChannelControl(type) {
 
   function levelColor(level) {
     if (level == null) return '#66bb6a'
-    if (level > -6) return '#ef5350'
-    if (level > -18) return '#ffa726'
+    if (level > -3) return '#ef5350'
+    if (level > -12) return '#ffa726'
     return '#66bb6a'
   }
 

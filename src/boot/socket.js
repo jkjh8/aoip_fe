@@ -23,6 +23,10 @@ socket.on('status', (data) => {
   aoipState.streams = data.streams
   aoipState.channels = data.channels
 })
+// DSP 변경(dsp:eq / dsp:hpf / dsp:limiter) 즉시 반영 — status(2s 주기) 대기 불필요
+socket.on('channels', (data) => {
+  aoipState.channels = data
+})
 socket.on('levels', (data) => {
   for (const { id, level } of (data.inputs ?? [])) {
     const ch = aoipState.channels.inputs.find(c => c.id === id)

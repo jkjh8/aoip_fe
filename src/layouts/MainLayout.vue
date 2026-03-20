@@ -48,6 +48,18 @@ const linksList = [
     icon: 'hub',
     link: '/matrix',
   },
+  {
+    title: 'Devices',
+    caption: 'Audio Interfaces',
+    icon: 'devices',
+    link: '/devices',
+  },
+  {
+    title: 'Settings',
+    caption: 'Application Settings',
+    icon: 'settings',
+    link: '/settings',
+  },
 ]
 
 const leftDrawerOpen = ref(true)

@@ -1,11 +1,28 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
 import { aoipState } from 'src/boot/socket'
-import { useChannelControl } from 'src/composables/useChannelControl'
+import { useChannelControl, gainToDb, dbToGain } from 'src/composables/useChannelControl'
+import EqPanel from './EqPanel.vue'
 
 const channels = computed(() => aoipState.channels.inputs)
 const inputRefs = ref({})
 const dragging = ref({})
+
+const eqOpen = ref(false)
+const eqChannel = ref(null)
+const eqChannelRight = ref(null)
+
+function openEq(group) {
+  eqChannel.value = group.stereo ? group.left : group.ch
+  eqChannelRight.value = group.stereo ? group.right : null
+  eqOpen.value = true
+}
+
+function isEqActive(group) {
+  const ch = group.stereo ? group.left : group.ch
+  const dsp = ch?.dsp
+  return !!(dsp?.hpf?.enabled || dsp?.eq?.some(b => b.enabled))
+}
 
 const { editingId, editingVal, toDb, levelPct, levelColor, setGain, toggleMute } =
   useChannelControl('input')
@@ -81,23 +98,24 @@ function fmtLevel(level) {
   return (level >= 0 ? '+' : '') + level.toFixed(1) + ' dB'
 }
 
-function gainToSlider(gain) {
-  if (gain <= 0) return -60
-  return Math.max(-60, Math.min(6, 20 * Math.log10(gain / 100)))
-}
-function sliderToGain(db) {
-  if (db <= -60) return 0
-  return Math.round(Math.max(0, Math.min(150, 100 * Math.pow(10, db / 20))))
-}
-
 function sliderVal(group) {
-  return dragging.value[groupKey(group)] ?? gainToSlider(groupGain(group))
+  return dragging.value[groupKey(group)] ?? gainToDb(groupGain(group))
 }
 function onSliderInput(group, val) {
   dragging.value[groupKey(group)] = Number(val)
 }
+
+function thumbLeft(val) {
+  const pct = ((Number(val) + 60) / 66) * 100
+  return `calc(${pct.toFixed(2)}% - ${(pct * 0.14).toFixed(1)}px + 7px)`
+}
+function fmtSlider(val) {
+  const v = Number(val)
+  if (v <= -60) return '-inf'
+  return (v >= 0 ? '+' : '') + v.toFixed(1) + ' dB'
+}
 function onSliderChange(group, val) {
-  const gain = sliderToGain(Number(val))
+  const gain = dbToGain(Number(val))
   if (group.stereo) {
     setGain(group.left.id, gain)
     setGain(group.right.id, gain)
@@ -108,10 +126,8 @@ function onSliderChange(group, val) {
 
 async function onDbClick(group) {
   const id = groupKey(group)
-  const gain = groupGain(group)
-  const db = gain <= 0 ? -60 : 20 * Math.log10(gain / 100)
   editingId.value = id
-  editingVal.value = db.toFixed(1)
+  editingVal.value = gainToDb(groupGain(group)).toFixed(1)
   await nextTick()
   inputRefs.value[id]?.focus()
   inputRefs.value[id]?.select()
@@ -120,9 +136,7 @@ async function onDbClick(group) {
 function commitEdit(group) {
   const db = parseFloat(editingVal.value)
   if (!isNaN(db)) {
-    const clamped = Math.max(-60, Math.min(6, db))
-    const gain =
-      clamped <= -60 ? 0 : Math.round(Math.max(0, Math.min(150, 100 * Math.pow(10, clamped / 20))))
+    const gain = dbToGain(Math.max(-60, Math.min(6, db)))
     if (group.stereo) {
       setGain(group.left.id, gain)
       setGain(group.right.id, gain)
@@ -174,16 +188,25 @@ watch(
               {{ group.stereo ? 'Stereo' : 'Mono' }}
             </span>
           </div>
-          <input
-            type="range"
-            :value="sliderVal(group)"
-            min="-60"
-            max="6"
-            step="0.5"
-            class="gain-slider"
-            @input="onSliderInput(group, $event.target.value)"
-            @change="onSliderChange(group, $event.target.value)"
-          />
+          <div class="slider-wrap">
+            <div
+              v-if="dragging[groupKey(group)] !== undefined"
+              class="slider-thumb-tip"
+              :style="{ left: thumbLeft(sliderVal(group)) }"
+            >
+              {{ fmtSlider(sliderVal(group)) }}
+            </div>
+            <input
+              type="range"
+              :value="sliderVal(group)"
+              min="-60"
+              max="6"
+              step="0.5"
+              class="gain-slider"
+              @input="onSliderInput(group, $event.target.value)"
+              @change="onSliderChange(group, $event.target.value)"
+            />
+          </div>
         </div>
 
         <!-- 게인 숫자창 -->
@@ -221,7 +244,7 @@ watch(
         </q-btn>
 
         <!-- EQ -->
-        <q-btn flat dense size="md" icon="equalizer">
+        <q-btn flat dense size="md" icon="equalizer" :color="isEqActive(group) ? 'blue-7' : 'blue-grey-5'" @click="openEq(group)">
           <q-tooltip
             class="bg-grey-4 text-grey-9"
             anchor="top middle"
@@ -240,7 +263,12 @@ watch(
                 class="level-fill"
                 :style="`height:${chLvlPct(group.left, isMuted(group))}%; background:${levelColor(group.left.level)}`"
               />
-              <q-tooltip class="bg-grey-4 text-grey-9" anchor="top middle" self="bottom middle" :offset="[0, 6]">
+              <q-tooltip
+                class="bg-grey-4 text-grey-9"
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[0, 6]"
+              >
                 L: {{ fmtLevel(group.left.level) }}
               </q-tooltip>
             </div>
@@ -249,7 +277,12 @@ watch(
                 class="level-fill"
                 :style="`height:${chLvlPct(group.right, isMuted(group))}%; background:${levelColor(group.right.level)}`"
               />
-              <q-tooltip class="bg-grey-4 text-grey-9" anchor="top middle" self="bottom middle" :offset="[0, 6]">
+              <q-tooltip
+                class="bg-grey-4 text-grey-9"
+                anchor="top middle"
+                self="bottom middle"
+                :offset="[0, 6]"
+              >
                 R: {{ fmtLevel(group.right.level) }}
               </q-tooltip>
             </div>
@@ -259,7 +292,12 @@ watch(
               class="level-fill"
               :style="`height:${chLvlPct(group.ch, isMuted(group))}%; background:${levelColor(group.ch.level)}`"
             />
-            <q-tooltip class="bg-grey-4 text-grey-9" anchor="top middle" self="bottom middle" :offset="[0, 6]">
+            <q-tooltip
+              class="bg-grey-4 text-grey-9"
+              anchor="top middle"
+              self="bottom middle"
+              :offset="[0, 6]"
+            >
               {{ fmtLevel(group.ch.level) }}
             </q-tooltip>
           </div>
@@ -267,6 +305,13 @@ watch(
       </div>
     </template>
   </div>
+
+  <EqPanel
+    v-model="eqOpen"
+    :channel="eqChannel"
+    :channel-right="eqChannelRight"
+    channel-type="input"
+  />
 </template>
 
 <style scoped>
@@ -297,7 +342,7 @@ watch(
   font-weight: 800;
   color: #fff;
   letter-spacing: 0.5px;
-  padding: 3px 7px;
+  padding: 14px 12px;
   border-radius: 3px;
   flex-shrink: 0;
 }
@@ -342,6 +387,25 @@ watch(
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.slider-wrap {
+  position: relative;
+}
+
+.slider-thumb-tip {
+  position: absolute;
+  top: -22px;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-family: 'Courier New', monospace;
+  color: #fff;
+  background: #1565c0;
+  border-radius: 3px;
+  padding: 1px 5px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
 }
 
 .gain-slider {
@@ -500,4 +564,5 @@ watch(
   border-color: #455a64;
   color: #90a4ae;
 }
+
 </style>
