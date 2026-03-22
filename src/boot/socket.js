@@ -40,7 +40,6 @@ socket.on('status', (data) => {
   if (data.rxStats) aoipState.rxStats = data.rxStats
 })
 socket.on('rx:stats', (data) => {
-  console.log('Received rx stats:', data)
   aoipState.rxStats = data
 })
 // DSP 변경(dsp:eq / dsp:hpf / dsp:limiter) 즉시 반영 — status(2s 주기) 대기 불필요
