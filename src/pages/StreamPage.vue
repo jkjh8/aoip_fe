@@ -171,8 +171,8 @@ const codecColor = { mp3: '#f57c00', opus: '#7b1fa2', raw: '#546e7a', wav: '#007
             </div>
             <div class="info-row">
               <span class="info-key">Format</span>
-              <span class="info-val" :class="aoipState.rxStats.codec ? '' : 'info-muted'">
-                {{ aoipState.rxStats.codec || '—' }}
+              <span class="info-val" :class="aoipState.rxStats.codec && aoipState.rxStats.codec !== 'unknown' ? '' : 'info-muted'">
+                {{ (aoipState.rxStats.codec && aoipState.rxStats.codec !== 'unknown') ? aoipState.rxStats.codec : '—' }}
               </span>
             </div>
             <div class="info-row">
