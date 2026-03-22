@@ -49,6 +49,12 @@ const linksList = [
     link: '/matrix',
   },
   {
+    title: 'Stream',
+    caption: 'Streaming Settings',
+    icon: 'stream',
+    link: '/stream',
+  },
+  {
     title: 'Devices',
     caption: 'Audio Interfaces',
     icon: 'devices',

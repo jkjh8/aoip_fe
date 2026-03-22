@@ -5,19 +5,19 @@ import { socket } from 'src/boot/socket'
  * 백엔드 gain 값(0~150 정수) → dB 변환
  *   0       → -∞  (-60 표시)
  *   0~100   → -60dB ~ 0dB  (선형)
- *   100~150 → 0dB  ~ +6dB  (선형)
+ *   100~150 → 0dB  ~ +12dB (선형)
  */
 export function gainToDb(gain) {
   if (gain == null || gain <= 0) return -60
   if (gain <= 100) return (gain / 100) * 60 - 60
-  return ((gain - 100) / 50) * 6
+  return ((gain - 100) / 50) * 12
 }
 
 /** dB → gain 0~150 정수 */
 export function dbToGain(db) {
   if (db <= -60) return 0
   if (db <= 0) return Math.round((db + 60) / 60 * 100)
-  return Math.round(Math.min(150, (db / 6) * 50 + 100))
+  return Math.round(Math.min(150, (db / 12) * 50 + 100))
 }
 
 export function useChannelControl(type) {

@@ -106,7 +106,7 @@ function onSliderInput(group, val) {
 }
 
 function thumbLeft(val) {
-  const pct = ((Number(val) + 60) / 66) * 100
+  const pct = ((Number(val) + 60) / 72) * 100
   return `calc(${pct.toFixed(2)}% - ${(pct * 0.14).toFixed(1)}px + 7px)`
 }
 function fmtSlider(val) {
@@ -136,7 +136,7 @@ async function onDbClick(group) {
 function commitEdit(group) {
   const db = parseFloat(editingVal.value)
   if (!isNaN(db)) {
-    const gain = dbToGain(Math.max(-60, Math.min(6, db)))
+    const gain = dbToGain(Math.max(-60, Math.min(12, db)))
     if (group.stereo) {
       setGain(group.left.id, gain)
       setGain(group.right.id, gain)
@@ -200,7 +200,7 @@ watch(
               type="range"
               :value="sliderVal(group)"
               min="-60"
-              max="6"
+              max="12"
               step="0.5"
               class="gain-slider"
               @input="onSliderInput(group, $event.target.value)"

@@ -15,6 +15,11 @@ const routes = [
     children: [{ path: '', component: () => import('pages/DevicesPage.vue') }],
   },
   {
+    path: '/stream',
+    component: () => import('layouts/MainLayout.vue'),
+    children: [{ path: '', component: () => import('pages/StreamPage.vue') }],
+  },
+  {
     path: '/settings',
     component: () => import('layouts/MainLayout.vue'),
     children: [{ path: '', component: () => import('pages/SettingsPage.vue') }],

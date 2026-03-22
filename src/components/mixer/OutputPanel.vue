@@ -34,7 +34,7 @@ function openLimiter(group) {
 function isEqActive(group) {
   const ch = group.stereo ? group.left : group.ch
   const dsp = ch?.dsp
-  return !!(dsp?.hpf?.enabled || dsp?.eq?.some(b => b.enabled))
+  return !!(dsp?.hpf?.enabled || dsp?.eq?.some((b) => b.enabled))
 }
 
 function isLimiterActive(group) {
@@ -207,7 +207,7 @@ function onSliderInput(group, val) {
 }
 
 function thumbLeft(val) {
-  const pct = ((Number(val) + 60) / 66) * 100
+  const pct = ((Number(val) + 60) / 72) * 100
   return `calc(${pct.toFixed(2)}% - ${(pct * 0.14).toFixed(1)}px + 7px)`
 }
 function fmtSlider(val) {
@@ -237,7 +237,7 @@ async function onDbClick(group) {
 function commitEdit(group) {
   const db = parseFloat(editingVal.value)
   if (!isNaN(db)) {
-    const gain = dbToGain(Math.max(-60, Math.min(6, db)))
+    const gain = dbToGain(Math.max(-60, Math.min(12, db)))
     if (group.stereo) {
       setGain(group.left.id, gain)
       setGain(group.right.id, gain)
@@ -318,7 +318,7 @@ watch(
               type="range"
               :value="sliderVal(group)"
               min="-60"
-              max="6"
+              max="12"
               step="0.5"
               class="gain-slider"
               @input="onSliderInput(group, $event.target.value)"
@@ -362,17 +362,39 @@ watch(
         </q-btn>
 
         <!-- EQ -->
-        <q-btn flat dense size="md" icon="equalizer" :color="isEqActive(group) ? 'blue-7' : 'blue-grey-5'" @click="openEq(group)">
-          <q-tooltip class="bg-grey-4 text-grey-9" anchor="top middle" self="bottom middle" :offset="[0, 4]">EQ</q-tooltip>
+        <q-btn
+          flat
+          dense
+          size="md"
+          icon="equalizer"
+          :color="isEqActive(group) ? 'blue-7' : 'blue-grey-5'"
+          @click="openEq(group)"
+        >
+          <q-tooltip
+            class="bg-grey-4 text-grey-9"
+            anchor="top middle"
+            self="bottom middle"
+            :offset="[0, 4]"
+            >EQ</q-tooltip
+          >
         </q-btn>
 
         <!-- Limiter -->
         <q-btn
-          flat dense size="md" icon="compress"
+          flat
+          dense
+          size="md"
+          icon="compress"
           :color="isLimiterActive(group) ? 'red-7' : 'blue-grey-5'"
           @click="openLimiter(group)"
         >
-          <q-tooltip class="bg-grey-4 text-grey-9" anchor="top middle" self="bottom middle" :offset="[0, 4]">Limiter</q-tooltip>
+          <q-tooltip
+            class="bg-grey-4 text-grey-9"
+            anchor="top middle"
+            self="bottom middle"
+            :offset="[0, 4]"
+            >Limiter</q-tooltip
+          >
         </q-btn>
 
         <!-- 레벨 미터 (vertical) -->
@@ -432,11 +454,7 @@ watch(
       channel-type="output"
     />
 
-    <LimiterPanel
-      v-model="limOpen"
-      :channel="limChannel"
-      :channel-right="limChannelRight"
-    />
+    <LimiterPanel v-model="limOpen" :channel="limChannel" :channel-right="limChannelRight" />
 
     <!-- 라우팅 팝업 -->
     <q-dialog v-model="routeDialogOpen" @hide="routeTarget = null">
@@ -611,7 +629,9 @@ watch(
 <style scoped>
 /* 공통 클래스는 src/css/app.scss 참조 */
 
-.label-pad { padding-left: 75px; }
+.label-pad {
+  padding-left: 75px;
+}
 
 /* 라우팅 버튼 — 모노/스테레오 동일 고정 사이즈 */
 .route-btn {
@@ -619,7 +639,7 @@ watch(
   border: 1px solid #b0bec5;
   border-radius: 4px;
   width: 48px;
-  height: 28px;
+  height: 40px;
   cursor: pointer;
   flex-shrink: 0;
   display: flex;

@@ -13,6 +13,7 @@ export const aoipState = reactive({
   bridges: {},
   streams: {},
   channels: { inputs: [], outputs: [] },
+  rxStats: { srcIp: null, srcPort: null, codec: null, packets: 0, udpBytes: 0, udpPackets: 0, drops: 0, bitrateKbps: 0, bufUsedMs: 0 },
 })
 
 socket.on('connect', () => { aoipState.connected = true })
@@ -26,6 +27,9 @@ socket.on('status', (data) => {
 // DSP 변경(dsp:eq / dsp:hpf / dsp:limiter) 즉시 반영 — status(2s 주기) 대기 불필요
 socket.on('channels', (data) => {
   aoipState.channels = data
+})
+socket.on('rx:stats', (data) => {
+  aoipState.rxStats = data
 })
 socket.on('levels', (data) => {
   for (const { id, level } of (data.inputs ?? [])) {

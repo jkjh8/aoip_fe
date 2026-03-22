@@ -119,10 +119,11 @@
   font-size: 12px;
   font-family: 'Courier New', monospace;
   color: #1565c0;
-  min-width: 64px;
+  width: 72px;
+  flex-shrink: 0;
+  flex-grow: 0;
   text-align: right;
   cursor: pointer;
-  flex-shrink: 0;
   padding: 4px 5px;
   border-radius: 3px;
   border: 1px solid transparent;
@@ -130,7 +131,7 @@
 .db-val:hover { border-color: #90caf9; background: #e3f2fd; }
 
 .db-input {
-  width: 64px;
+  width: 72px;
   font-size: 12px;
   font-family: 'Courier New', monospace;
   color: #1565c0;
