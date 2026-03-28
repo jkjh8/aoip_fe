@@ -1,5 +1,6 @@
 <script setup>
-import { aoipState } from 'src/boot/socket'
+import { useAoipStore } from 'src/stores/aoip'
+const aoipState = useAoipStore()
 import InputPanel from 'src/components/mixer/InputPanel.vue'
 import OutputPanel from 'src/components/mixer/OutputPanel.vue'
 </script>

@@ -15,11 +15,9 @@ const FS = 48000
 
 // HPF + 4 peak bands
 // idx 0 = HPF (dsp.hpf), idx 1-4 = peak bands (dsp.eq[0-3])
-const COLORS = ['#78909c', '#ffa726', '#66bb6a', '#42a5f5', '#ab47bc']
-const BAND_LABELS = ['HPF', 'Band 1', 'Band 2', 'Band 3', 'Band 4']
+const COLORS = ['#ffa726', '#66bb6a', '#42a5f5', '#ab47bc']
+const BAND_LABELS = ['Band 1', 'Band 2', 'Band 3', 'Band 4']
 
-const DEFAULT_HPF = { enabled: false, freq: 80, slope: 12 }
-const HPF_SLOPES = [6, 12, 18, 24, 48, 96]
 const DEFAULT_BANDS = [
   { enabled: false, freq: 100, gain: 0, q: 0.7, type: 'peak' }, // ← low_shelf 전환 가능
   { enabled: false, freq: 500, gain: 0, q: 0.7, type: 'peak' },
@@ -33,9 +31,8 @@ const BAND_TYPE_OPTIONS = {
 }
 
 // ── State ──────────────────────────────────────────────────
-const hpf = ref({ ...DEFAULT_HPF })
 const bands = ref(DEFAULT_BANDS.map((b) => ({ ...b })))
-const selectedIdx = ref(1) // 0=HPF, 1-4=peak band
+const selectedIdx = ref(0)
 const bypass = ref(false)
 // bypass 토글 전 enabled 상태 저장
 let savedEnabled = null
@@ -67,31 +64,11 @@ function throttledSendBand(bandIdx) {
   }
 }
 
-function throttledSendHpf() {
-  const now = Date.now()
-  const last = _sendLast['hpf'] ?? 0
-  clearTimeout(_sendTimers['hpf'])
-  if (now - last >= THROTTLE_MS) {
-    _sendLast['hpf'] = now
-    sendHpf()
-  } else {
-    _sendTimers['hpf'] = setTimeout(
-      () => {
-        _sendLast['hpf'] = Date.now()
-        sendHpf()
-      },
-      THROTTLE_MS - (now - last),
-    )
-  }
-}
-
 function initFromChannel() {
   if (!props.channel) return
   bypass.value = false
   savedEnabled = null
   const dsp = props.channel.dsp
-  if (dsp?.hpf) Object.assign(hpf.value, { ...DEFAULT_HPF, ...dsp.hpf })
-  else Object.assign(hpf.value, { ...DEFAULT_HPF })
   if (Array.isArray(dsp?.eq)) {
     dsp.eq.forEach((src, i) => {
       if (bands.value[i])
@@ -147,43 +124,6 @@ function yToGain(y) {
 }
 
 // ── Biquad ─────────────────────────────────────────────────
-function hpf1Coeffs(freq) {
-  const k = Math.tan((Math.PI * Math.min(freq, FS * 0.499)) / FS)
-  const n = 1 / (1 + k)
-  return { b0: n, b1: -n, b2: 0, a1: (k - 1) * n, a2: 0 }
-}
-
-// Butterworth HPF: cascade of 2nd (+ optional 1st) order sections
-function hpfCoeffsList(freq, slope) {
-  const order = Math.round(slope / 6)
-  const pairs = Math.floor(order / 2)
-  const hasFirst = order % 2 === 1
-  const list = []
-  if (pairs > 0) {
-    const Qs = []
-    for (let k = 1; k <= pairs; k++)
-      Qs.push(1 / (2 * Math.sin(((2 * k - 1) * Math.PI) / (2 * order))))
-    Qs.sort((a, b) => a - b)
-    for (const q of Qs) list.push(hpfCoeffs(freq, q))
-  }
-  if (hasFirst) list.push(hpf1Coeffs(freq))
-  return list
-}
-
-function hpfCoeffs(freq, q = 0.707) {
-  const w0 = (2 * Math.PI * Math.min(freq, FS * 0.499)) / FS
-  const cosW = Math.cos(w0),
-    sinW = Math.sin(w0)
-  const alpha = sinW / (2 * q)
-  const b0 = (1 + cosW) / 2,
-    b1 = -(1 + cosW),
-    b2 = (1 + cosW) / 2
-  const a0 = 1 + alpha,
-    a1 = -2 * cosW,
-    a2 = 1 - alpha
-  return { b0: b0 / a0, b1: b1 / a0, b2: b2 / a0, a1: a1 / a0, a2: a2 / a0 }
-}
-
 function shelfCoeffs(type, freq, gainDb, q) {
   const A = Math.pow(10, gainDb / 40)
   const w0 = (2 * Math.PI * Math.min(freq, FS * 0.499)) / FS
@@ -256,8 +196,6 @@ const curvePts = computed(() => {
   // bypass ON 이면 필터 없음 → 0dB 플랫 커브
   const coeffsList = []
   if (!bypass.value) {
-    if (hpf.value.enabled)
-      for (const c of hpfCoeffsList(hpf.value.freq, hpf.value.slope ?? 12)) coeffsList.push(c)
     for (const b of bands.value) {
       if (!b.enabled) continue
       const c = bandCoeffs(b)
@@ -288,28 +226,14 @@ const areaPath = computed(() => {
   return `M ${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)} L ${line} L ${pts[pts.length - 1].x.toFixed(1)},${zY} L ${pts[0].x.toFixed(1)},${zY} Z`
 })
 
-// ── Band handles (0=HPF, 1-4=peak) ────────────────────────
+// ── Band handles (0-3 = peak bands) ───────────────────────
 const handles = computed(() => {
-  const list = []
-  // HPF handle — sits at 0dB line, moves only horizontally
-  list.push({
-    x: freqToX(Math.max(FREQ_MIN, Math.min(FREQ_MAX, hpf.value.freq))),
-    y: gainToY(0),
-    color: COLORS[0],
-    enabled: hpf.value.enabled,
-    isHpf: true,
-  })
-  // Peak band handles
-  for (const b of bands.value) {
-    list.push({
-      x: freqToX(Math.max(FREQ_MIN, Math.min(FREQ_MAX, b.freq))),
-      y: gainToY(Math.max(GAIN_MIN, Math.min(GAIN_MAX, b.gain))),
-      color: COLORS[list.length],
-      enabled: b.enabled,
-      isHpf: false,
-    })
-  }
-  return list
+  return bands.value.map((b, i) => ({
+    x: freqToX(Math.max(FREQ_MIN, Math.min(FREQ_MAX, b.freq))),
+    y: gainToY(Math.max(GAIN_MIN, Math.min(GAIN_MAX, b.gain))),
+    color: COLORS[i],
+    enabled: b.enabled,
+  }))
 })
 
 // ── Grid ───────────────────────────────────────────────────
@@ -349,11 +273,8 @@ function onHandlePointerdown(e, i) {
 
   // 드래그 시작 시 해당 밴드 자동 ON
   let autoEnabled = false
-  if (i === 0 && !hpf.value.enabled) {
-    hpf.value.enabled = true
-    autoEnabled = true
-  } else if (i > 0 && !bands.value[i - 1].enabled) {
-    bands.value[i - 1].enabled = true
+  if (!bands.value[i].enabled) {
+    bands.value[i].enabled = true
     autoEnabled = true
   }
 
@@ -363,33 +284,17 @@ function onHandlePointerdown(e, i) {
   const onMove = (me) => {
     moved = true
     const { x, y } = svgPt(me)
-    const freq = Math.round(Math.max(FREQ_MIN, Math.min(FREQ_MAX, xToFreq(x))))
-    if (i === 0) {
-      hpf.value.freq = freq
-      throttledSendHpf()
-    } else {
-      const b = bands.value[i - 1]
-      b.freq = freq
-      b.gain = Math.round(Math.max(GAIN_MIN, Math.min(GAIN_MAX, yToGain(y))) * 10) / 10
-      throttledSendBand(i - 1)
-    }
+    const b = bands.value[i]
+    b.freq = Math.round(Math.max(FREQ_MIN, Math.min(FREQ_MAX, xToFreq(x))))
+    b.gain = Math.round(Math.max(GAIN_MIN, Math.min(GAIN_MAX, yToGain(y))) * 10) / 10
+    throttledSendBand(i)
   }
   const onUp = () => {
     if (!moved) {
-      // 단클릭: autoEnabled면 활성화 확정 전송, 이미 활성이면 무시
-      if (autoEnabled) {
-        if (i === 0) sendHpf()
-        else sendBand(i - 1)
-      }
+      if (autoEnabled) sendBand(i)
     } else {
-      // 드래그 종료 시 throttle 타이머 취소하고 최종값 즉시 전송
-      if (i === 0) {
-        clearTimeout(_sendTimers['hpf'])
-        sendHpf()
-      } else {
-        clearTimeout(_sendTimers[i - 1])
-        sendBand(i - 1)
-      }
+      clearTimeout(_sendTimers[i])
+      sendBand(i)
     }
     dragCooldownTimer = setTimeout(() => { isDragging = false }, DRAG_COOLDOWN_MS)
     window.removeEventListener('pointermove', onMove)
@@ -401,10 +306,9 @@ function onHandlePointerdown(e, i) {
 
 function onHandleWheel(e, i) {
   e.preventDefault()
-  if (i === 0) return // HPF has no Q
-  const b = bands.value[i - 1]
+  const b = bands.value[i]
   b.q = Math.round(Math.max(0.1, Math.min(10, b.q * (e.deltaY > 0 ? 0.9 : 1.1))) * 100) / 100
-  throttledSendBand(i - 1)
+  throttledSendBand(i)
 }
 
 // ── Socket helpers ─────────────────────────────────────────
@@ -414,23 +318,6 @@ function emitEq(payload) {
   for (const id of ids) {
     socket.emit('dsp:eq', { ...payload, id })
   }
-}
-function emitHpf(payload) {
-  if (props.channelType !== 'input') return
-  const ids = [props.channel?.id, props.channelRight?.id].filter(Boolean)
-  for (const id of ids) {
-    socket.emit('dsp:hpf', { ...payload, id })
-  }
-}
-
-function sendHpf() {
-  if (!props.channel) return
-  emitHpf({ enabled: hpf.value.enabled, freq: hpf.value.freq, slope: hpf.value.slope })
-}
-
-function setSlope(val) {
-  hpf.value.slope = val
-  sendHpf()
 }
 
 function sendBand(bandIdx) {
@@ -452,13 +339,8 @@ function sendBand(bandIdx) {
 function toggleBypass() {
   if (!bypass.value) {
     // 바이패스 ON: 현재 enabled 상태 저장 후 전체 비활성화
-    savedEnabled = {
-      hpf: hpf.value.enabled,
-      bands: bands.value.map((b) => b.enabled),
-    }
+    savedEnabled = { bands: bands.value.map((b) => b.enabled) }
     bypass.value = true
-    hpf.value.enabled = false
-    sendHpf()
     bands.value.forEach((b, idx) => {
       b.enabled = false
       sendBand(idx)
@@ -467,8 +349,6 @@ function toggleBypass() {
     // 바이패스 OFF: 저장된 상태 복원 + 전체 계수 재전송
     bypass.value = false
     if (savedEnabled) {
-      hpf.value.enabled = savedEnabled.hpf
-      sendHpf()
       bands.value.forEach((b, idx) => {
         b.enabled = savedEnabled.bands[idx]
         sendBand(idx)
@@ -479,8 +359,8 @@ function toggleBypass() {
 }
 
 function disableHandle(i) {
-  if (i === 0) { hpf.value.enabled = false; sendHpf() }
-  else { bands.value[i - 1].enabled = false; sendBand(i - 1) }
+  bands.value[i].enabled = false
+  sendBand(i)
 }
 
 function allFlat() {
@@ -491,13 +371,8 @@ function allFlat() {
 }
 
 function toggleHandle(i) {
-  if (i === 0) {
-    hpf.value.enabled = !hpf.value.enabled
-    sendHpf()
-  } else {
-    bands.value[i - 1].enabled = !bands.value[i - 1].enabled
-    sendBand(i - 1)
-  }
+  bands.value[i].enabled = !bands.value[i].enabled
+  sendBand(i)
 }
 
 // ── Type cycling for convertible bands ────────────────────
@@ -511,16 +386,12 @@ function cycleType(bandIdx) {
 }
 
 // ── Selected band accessors ────────────────────────────────
-const selIsHpf = computed(() => selectedIdx.value === 0)
-const selIsPeak = computed(() => selectedIdx.value > 0)
-const selBandIdx = computed(() => selectedIdx.value - 1) // bands[] 인덱스
-const selBand = computed(() => (selIsPeak.value ? bands.value[selBandIdx.value] : null))
+const selBandIdx = computed(() => selectedIdx.value)
+const selBand = computed(() => bands.value[selBandIdx.value])
 const selIsShelf = computed(
   () => selBand.value?.type === 'low_shelf' || selBand.value?.type === 'high_shelf',
 )
-const selEnabled = computed(() =>
-  selIsHpf.value ? hpf.value.enabled : (selBand.value?.enabled ?? false),
-)
+const selEnabled = computed(() => selBand.value?.enabled ?? false)
 const selColor = computed(() => COLORS[selectedIdx.value])
 const selTypeOptions = computed(() => BAND_TYPE_OPTIONS[selBandIdx.value] ?? null)
 
@@ -531,24 +402,19 @@ const BAND_TYPE_LABEL_MAP = {
 }
 
 function setFreq(val) {
-  const f = Math.max(FREQ_MIN, Math.min(FREQ_MAX, Number(val) || FREQ_MIN))
-  if (selIsHpf.value) {
-    hpf.value.freq = Math.round(f)
-    throttledSendHpf()
-  } else {
-    selBand.value.freq = Math.round(f)
-    throttledSendBand(selectedIdx.value - 1)
-  }
+  if (!selBand.value) return
+  selBand.value.freq = Math.round(Math.max(FREQ_MIN, Math.min(FREQ_MAX, Number(val) || FREQ_MIN)))
+  throttledSendBand(selectedIdx.value)
 }
 function setGain(val) {
   if (!selBand.value) return
   selBand.value.gain = Math.max(GAIN_MIN, Math.min(GAIN_MAX, Number(val) || 0))
-  throttledSendBand(selectedIdx.value - 1)
+  throttledSendBand(selectedIdx.value)
 }
 function setQ(val) {
   if (!selBand.value) return
   selBand.value.q = Math.max(0.1, Math.min(10, Number(val) || 1))
-  throttledSendBand(selectedIdx.value - 1)
+  throttledSendBand(selectedIdx.value)
 }
 
 // ── Formatting ─────────────────────────────────────────────
@@ -701,7 +567,7 @@ function fmtQ(q) {
                 :fill-opacity="h.enabled ? 1 : 0.5"
                 font-family="sans-serif"
               >
-                {{ i === 0 ? 'HPF' : i }}
+                {{ i + 1 }}
               </text>
             </g>
             </g>
@@ -759,8 +625,7 @@ function fmtQ(q) {
           <div class="row items-center q-mb-sm">
             <span class="detail-title" :style="`color:${selColor}`">
               {{ BAND_LABELS[selectedIdx] }}
-              <span v-if="selectedIdx === 0" class="detail-sub">— {{ hpf.slope }} dB/oct</span>
-              <span v-else-if="selBand" class="detail-sub">
+              <span v-if="selBand" class="detail-sub">
                 — {{ BAND_TYPE_LABEL_MAP[selBand.type] }}
               </span>
             </span>
@@ -790,30 +655,17 @@ function fmtQ(q) {
             />
           </div>
 
-          <!-- HPF Slope selector -->
-          <div v-if="selectedIdx === 0" class="row q-mb-sm q-gutter-xs items-center">
-            <span class="ctrl-label q-mr-xs" style="line-height:28px">Slope</span>
-            <button
-              v-for="s in HPF_SLOPES"
-              :key="s"
-              class="slope-btn"
-              :class="{ 'slope-btn--active': hpf.slope === s }"
-              @click="setSlope(s)"
-            >{{ s }}</button>
-            <span class="ctrl-label" style="line-height:28px;margin-left:2px">dB/oct</span>
-          </div>
-
           <div class="row q-gutter-sm">
             <!-- Freq (always shown) -->
             <div class="col ctrl-col">
               <div class="ctrl-label">Frequency</div>
               <div class="ctrl-val">
-                {{ fmtFreqFull(selIsHpf ? hpf.freq : (selBand?.freq ?? 0)) }}
+                {{ fmtFreqFull(selBand?.freq ?? 0) }}
               </div>
               <input
                 type="range"
                 class="ctrl-range"
-                :value="freqToX(selIsHpf ? hpf.freq : (selBand?.freq ?? 100))"
+                :value="freqToX(selBand?.freq ?? 100)"
                 :min="0"
                 :max="PW"
                 step="1"
@@ -823,7 +675,7 @@ function fmtQ(q) {
               <input
                 type="number"
                 class="ctrl-num"
-                :value="selIsHpf ? hpf.freq : selBand?.freq"
+                :value="selBand?.freq"
                 min="20"
                 max="20000"
                 step="1"
@@ -831,8 +683,8 @@ function fmtQ(q) {
               />
             </div>
 
-            <!-- Gain (peak bands only) -->
-            <div v-if="selIsPeak" class="col ctrl-col">
+            <!-- Gain -->
+            <div v-if="selBand" class="col ctrl-col">
               <div class="ctrl-label">Gain</div>
               <div class="ctrl-val">{{ fmtGain(selBand?.gain ?? 0) }}</div>
               <input
@@ -857,7 +709,7 @@ function fmtQ(q) {
             </div>
 
             <!-- Q / Slope -->
-            <div v-if="selIsPeak" class="col ctrl-col">
+            <div v-if="selBand" class="col ctrl-col">
               <div class="ctrl-label">{{ selIsShelf ? 'Slope' : 'Q' }}</div>
               <div class="ctrl-val">{{ fmtQ(selBand?.q ?? 1) }}</div>
               <input

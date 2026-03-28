@@ -1,6 +1,8 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
-import { socket, aoipState } from 'src/boot/socket'
+import { socket } from 'src/boot/socket'
+import { useAoipStore } from 'src/stores/aoip'
+const aoipState = useAoipStore()
 import { useChannelControl, gainToDb, dbToGain } from 'src/composables/useChannelControl'
 import EqPanel from './EqPanel.vue'
 import LimiterPanel from './LimiterPanel.vue'
@@ -31,10 +33,15 @@ function openLimiter(group) {
   limOpen.value = true
 }
 
+function hasDsp(group) {
+  const ch = group.stereo ? group.left : group.ch
+  return ch?.dsp != null && ch?.bypassDsp !== true
+}
+
 function isEqActive(group) {
   const ch = group.stereo ? group.left : group.ch
   const dsp = ch?.dsp
-  return !!(dsp?.hpf?.enabled || dsp?.eq?.some((b) => b.enabled))
+  return !!(dsp?.eq?.some((b) => b.enabled))
 }
 
 function isLimiterActive(group) {
@@ -344,6 +351,7 @@ watch(
 
         <!-- 뮤트 -->
         <q-btn
+          class="mute-btn"
           flat
           dense
           size="md"
@@ -368,6 +376,7 @@ watch(
           size="md"
           icon="equalizer"
           :color="isEqActive(group) ? 'blue-7' : 'blue-grey-5'"
+          :style="!hasDsp(group) ? 'visibility:hidden;pointer-events:none' : ''"
           @click="openEq(group)"
         >
           <q-tooltip
@@ -385,6 +394,7 @@ watch(
           dense
           size="md"
           icon="compress"
+          :style="!hasDsp(group) ? 'visibility:hidden;pointer-events:none' : ''"
           :color="isLimiterActive(group) ? 'red-7' : 'blue-grey-5'"
           @click="openLimiter(group)"
         >

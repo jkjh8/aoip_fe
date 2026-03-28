@@ -1,5 +1,7 @@
 <script setup>
-import { socket, aoipState } from 'src/boot/socket'
+import { socket } from 'src/boot/socket'
+import { useAoipStore } from 'src/stores/aoip'
+const aoipState = useAoipStore()
 import { computed } from 'vue'
 
 const inputs = computed(() => aoipState.channels.inputs)

@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
-import { aoipState } from 'src/boot/socket'
+import { useAoipStore } from 'src/stores/aoip'
+const aoipState = useAoipStore()
 import { useChannelControl, gainToDb, dbToGain } from 'src/composables/useChannelControl'
 import EqPanel from './EqPanel.vue'
 
@@ -18,10 +19,15 @@ function openEq(group) {
   eqOpen.value = true
 }
 
+function hasDsp(group) {
+  const ch = group.stereo ? group.left : group.ch
+  return ch?.dsp != null && ch?.bypassDsp !== true
+}
+
 function isEqActive(group) {
   const ch = group.stereo ? group.left : group.ch
   const dsp = ch?.dsp
-  return !!(dsp?.hpf?.enabled || dsp?.eq?.some(b => b.enabled))
+  return !!(dsp?.eq?.some(b => b.enabled))
 }
 
 const { editingId, editingVal, toDb, levelPct, levelColor, setGain, toggleMute } =
@@ -226,6 +232,7 @@ watch(
 
         <!-- 뮤트 -->
         <q-btn
+          class="mute-btn"
           flat
           dense
           size="md"
@@ -244,7 +251,7 @@ watch(
         </q-btn>
 
         <!-- EQ -->
-        <q-btn flat dense size="md" icon="equalizer" :color="isEqActive(group) ? 'blue-7' : 'blue-grey-5'" @click="openEq(group)">
+        <q-btn flat dense size="md" icon="equalizer" :color="isEqActive(group) ? 'blue-7' : 'blue-grey-5'" :style="!hasDsp(group) ? 'visibility:hidden;pointer-events:none' : ''" @click="openEq(group)">
           <q-tooltip
             class="bg-grey-4 text-grey-9"
             anchor="top middle"

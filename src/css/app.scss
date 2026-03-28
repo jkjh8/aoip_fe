@@ -19,7 +19,7 @@
   transition: opacity 0.2s;
   min-height: 66px;
 }
-.ch-strip.muted { opacity: 0.38; }
+.ch-strip.muted > *:not(.mute-btn) { opacity: 0.38; }
 
 .ch-tag {
   font-size: 9px;
