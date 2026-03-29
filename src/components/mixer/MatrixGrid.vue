@@ -4,8 +4,8 @@ import { useAoipStore } from 'src/stores/aoip'
 const aoipState = useAoipStore()
 import { computed } from 'vue'
 
-const inputs = computed(() => aoipState.channels.inputs)
-const outputs = computed(() => aoipState.channels.outputs)
+const inputs = computed(() => aoipState.channels.inputs.filter(c => c.enabled !== false))
+const outputs = computed(() => aoipState.channels.outputs.filter(c => c.enabled !== false))
 
 function isConnected(input, output) {
   const entry = aoipState.jack.connections.find((c) => c.port === input.jackPort)
@@ -57,7 +57,7 @@ function toggle(input, output) {
 .matrix-panel {
   flex: 1;
   min-width: 0;
-  max-width: 30%;
+  max-width: 40%;
   display: flex;
   flex-direction: column;
 }
@@ -149,7 +149,6 @@ function toggle(input, output) {
 .m-cell.active:hover {
   background: #0d47a1;
 }
-
 
 .body--dark .matrix-panel {
   background: #16213e;

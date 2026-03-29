@@ -41,7 +41,7 @@ function hasDsp(group) {
 function isEqActive(group) {
   const ch = group.stereo ? group.left : group.ch
   const dsp = ch?.dsp
-  return !!(dsp?.eq?.some((b) => b.enabled))
+  return !!(dsp?.hpf?.enabled || dsp?.eq?.some((b) => b.enabled))
 }
 
 function isLimiterActive(group) {

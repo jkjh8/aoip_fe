@@ -91,17 +91,26 @@ function toggle() {
 }
 
 // ── Formatting ─────────────────────────────────────────────
-function fmtThreshold(v) {
-  return (v >= 0 ? '+' : '') + Number(v).toFixed(1) + ' dBFS'
-}
-function fmtMs(v) {
-  return v < 1000 ? Number(v).toFixed(v < 10 ? 1 : 0) + ' ms' : (v / 1000).toFixed(2) + ' s'
-}
-function fmtDb(v) {
-  return (v > 0 ? '+' : '') + Number(v).toFixed(1) + ' dB'
-}
 function fmtGr(v) {
   return v < 0.1 ? '0.0 dB' : '-' + v.toFixed(1) + ' dB'
+}
+
+// ── Direct number input handlers ───────────────────────────
+function setThreshold(val) {
+  threshold.value = Math.max(-30, Math.min(0, Number(val) || 0))
+  send()
+}
+function setAttack(val) {
+  attack.value = Math.max(0.1, Math.min(50, Number(val) || 0.1))
+  send()
+}
+function setRelease(val) {
+  release.value = Math.max(10, Math.min(1000, Number(val) || 10))
+  send()
+}
+function setMakeup(val) {
+  makeup.value = Math.max(0, Math.min(20, Number(val) || 0))
+  send()
 }
 </script>
 
@@ -139,21 +148,21 @@ function fmtGr(v) {
         </div>
 
         <!-- Threshold -->
-        <div class="ctrl-row q-mb-md">
-          <div class="ctrl-head">
-            <span class="ctrl-label">THRESHOLD</span>
-            <span class="ctrl-val" :class="enabled ? 'ctrl-val--active' : ''">
-              {{ fmtThreshold(threshold) }}
-            </span>
-          </div>
+        <div class="ctrl-col q-mb-md">
+          <div class="ctrl-label">Threshold</div>
           <input type="range" class="ctrl-range"
             :value="threshold" min="-30" max="0" step="0.5"
             :disabled="!enabled"
             @input="threshold = Number($event.target.value)"
             @change="send"
           />
-          <div class="ctrl-tick-row">
-            <span v-for="t in [-30,-24,-18,-12,-6,0]" :key="t" class="ctrl-tick">{{ t }}</span>
+          <div class="ctrl-num-row">
+            <input type="number" class="ctrl-num"
+              :value="threshold" min="-30" max="0" step="0.5"
+              :disabled="!enabled"
+              @change="setThreshold($event.target.value)"
+            />
+            <span class="ctrl-unit">dBFS</span>
           </div>
         </div>
 
@@ -161,59 +170,59 @@ function fmtGr(v) {
         <div class="row q-gutter-md">
 
           <!-- Attack -->
-          <div class="col ctrl-row">
-            <div class="ctrl-head">
-              <span class="ctrl-label">ATTACK</span>
-              <span class="ctrl-val" :class="enabled ? 'ctrl-val--active' : ''">
-                {{ fmtMs(attack) }}
-              </span>
-            </div>
+          <div class="col ctrl-col">
+            <div class="ctrl-label">Attack</div>
             <input type="range" class="ctrl-range"
               :value="attack" min="0.1" max="50" step="0.1"
               :disabled="!enabled"
               @input="attack = Number($event.target.value)"
               @change="send"
             />
-            <div class="ctrl-tick-row">
-              <span v-for="t in ['0.1','5','10','20','50']" :key="t" class="ctrl-tick">{{ t }}</span>
+            <div class="ctrl-num-row">
+              <input type="number" class="ctrl-num"
+                :value="attack" min="0.1" max="50" step="0.1"
+                :disabled="!enabled"
+                @change="setAttack($event.target.value)"
+              />
+              <span class="ctrl-unit">ms</span>
             </div>
           </div>
 
           <!-- Release -->
-          <div class="col ctrl-row">
-            <div class="ctrl-head">
-              <span class="ctrl-label">RELEASE</span>
-              <span class="ctrl-val" :class="enabled ? 'ctrl-val--active' : ''">
-                {{ fmtMs(release) }}
-              </span>
-            </div>
+          <div class="col ctrl-col">
+            <div class="ctrl-label">Release</div>
             <input type="range" class="ctrl-range"
               :value="release" min="10" max="1000" step="10"
               :disabled="!enabled"
               @input="release = Number($event.target.value)"
               @change="send"
             />
-            <div class="ctrl-tick-row">
-              <span v-for="t in ['10ms','100ms','500ms','1s']" :key="t" class="ctrl-tick">{{ t }}</span>
+            <div class="ctrl-num-row">
+              <input type="number" class="ctrl-num"
+                :value="release" min="10" max="1000" step="10"
+                :disabled="!enabled"
+                @change="setRelease($event.target.value)"
+              />
+              <span class="ctrl-unit">ms</span>
             </div>
           </div>
 
           <!-- Makeup -->
-          <div class="col ctrl-row">
-            <div class="ctrl-head">
-              <span class="ctrl-label">MAKEUP</span>
-              <span class="ctrl-val" :class="enabled ? 'ctrl-val--active' : ''">
-                {{ fmtDb(makeup) }}
-              </span>
-            </div>
+          <div class="col ctrl-col">
+            <div class="ctrl-label">Makeup</div>
             <input type="range" class="ctrl-range"
               :value="makeup" min="0" max="20" step="0.5"
               :disabled="!enabled"
               @input="makeup = Number($event.target.value)"
               @change="send"
             />
-            <div class="ctrl-tick-row">
-              <span v-for="t in ['0','5','10','15','20']" :key="t" class="ctrl-tick">{{ t }}</span>
+            <div class="ctrl-num-row">
+              <input type="number" class="ctrl-num"
+                :value="makeup" min="0" max="20" step="0.5"
+                :disabled="!enabled"
+                @change="setMakeup($event.target.value)"
+              />
+              <span class="ctrl-unit">dB</span>
             </div>
           </div>
 
@@ -283,68 +292,70 @@ function fmtGr(v) {
 }
 
 /* Controls */
-.ctrl-row {
+.ctrl-col {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-.ctrl-head {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
 }
 .ctrl-label {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
-  letter-spacing: 1px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
   color: #90a4ae;
+  margin-bottom: 2px;
 }
-.ctrl-val {
-  font-size: 14px;
-  font-family: 'Courier New', monospace;
-  font-weight: 700;
-  color: #b0bec5;
-  transition: color 0.15s;
-}
-.ctrl-val--active { color: #ef5350; }
-
 .ctrl-range {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 18px;
-  background: transparent;
+  height: 4px;
+  border-radius: 2px;
+  background: #dce1e7;
+  outline: none;
   cursor: pointer;
-  padding: 0; margin: 0;
-}
-.ctrl-range:disabled { opacity: 0.35; cursor: default; }
-.ctrl-range::-webkit-slider-runnable-track {
-  height: 3px; background: #cfd8dc; border-radius: 2px;
+  margin-bottom: 14px;
 }
 .ctrl-range::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 16px; height: 16px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: #ef5350;
   cursor: pointer;
-  margin-top: -6.5px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
-.ctrl-range::-moz-range-track { height: 3px; background: #cfd8dc; border-radius: 2px; }
 .ctrl-range::-moz-range-thumb {
-  width: 16px; height: 16px; border-radius: 50%;
-  background: #ef5350; border: none; cursor: pointer;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ef5350;
+  border: none;
+  cursor: pointer;
 }
-.ctrl-range:disabled::-webkit-slider-thumb { background: #b0bec5; }
-.ctrl-range:disabled::-moz-range-thumb { background: #b0bec5; }
-
-.ctrl-tick-row {
+.ctrl-range:disabled { opacity: 0.35; cursor: default; }
+.ctrl-num-row {
   display: flex;
-  justify-content: space-between;
-  padding: 0 2px;
+  align-items: center;
+  gap: 5px;
 }
-.ctrl-tick {
-  font-size: 9px;
-  color: #b0bec5;
+.ctrl-unit {
+  font-size: 11px;
+  color: #90a4ae;
+  white-space: nowrap;
 }
+.ctrl-num {
+  width: 72px;
+  font-size: 12px;
+  padding: 3px 6px;
+  border: 1px solid #cfd8dc;
+  border-radius: 3px;
+  outline: none;
+  background: #fff;
+  color: #455a64;
+}
+.ctrl-num:focus {
+  border-color: #90caf9;
+  background: #e3f2fd;
+}
+.ctrl-num:disabled { opacity: 0.35; cursor: default; }
 </style>

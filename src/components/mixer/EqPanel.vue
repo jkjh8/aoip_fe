@@ -13,10 +13,11 @@ const emit = defineEmits(['update:modelValue'])
 // ── Constants ──────────────────────────────────────────────
 const FS = 48000
 
-// HPF + 4 peak bands
-// idx 0 = HPF (dsp.hpf), idx 1-4 = peak bands (dsp.eq[0-3])
 const COLORS = ['#ffa726', '#66bb6a', '#42a5f5', '#ab47bc']
 const BAND_LABELS = ['Band 1', 'Band 2', 'Band 3', 'Band 4']
+
+const HPF_COLOR  = '#ef5350'
+const HPF_SLOPES = [12, 24, 48, 96]
 
 const DEFAULT_BANDS = [
   { enabled: false, freq: 100, gain: 0, q: 0.7, type: 'peak' }, // ← low_shelf 전환 가능
@@ -33,6 +34,8 @@ const BAND_TYPE_OPTIONS = {
 // ── State ──────────────────────────────────────────────────
 const bands = ref(DEFAULT_BANDS.map((b) => ({ ...b })))
 const selectedIdx = ref(0)
+const hpfSelected = ref(false)
+const hpf = ref({ enabled: false, freq: 80, slope: 12 })
 const bypass = ref(false)
 // bypass 토글 전 enabled 상태 저장
 let savedEnabled = null
@@ -82,6 +85,15 @@ function initFromChannel() {
     })
   } else {
     bands.value = DEFAULT_BANDS.map((b) => ({ ...b }))
+  }
+  if (dsp?.hpf) {
+    hpf.value = {
+      enabled: dsp.hpf.enabled ?? false,
+      freq:    dsp.hpf.freq   ?? 80,
+      slope:   dsp.hpf.slope  ?? 12,
+    }
+  } else {
+    hpf.value = { enabled: false, freq: 80, slope: 12 }
   }
 }
 
@@ -188,6 +200,89 @@ function bandCoeffs(b) {
   return peakCoeffs(b.freq, b.gain, b.q)
 }
 
+// ── HPF biquad (Butterworth) ───────────────────────────────
+function hpfBiquad(freq) {
+  const Q  = 1 / Math.sqrt(2)
+  const w0 = (2 * Math.PI * Math.min(freq, FS * 0.499)) / FS
+  const cosW = Math.cos(w0), sinW = Math.sin(w0)
+  const alpha = sinW / (2 * Q)
+  const b0 = (1 + cosW) / 2, b1 = -(1 + cosW), b2 = (1 + cosW) / 2
+  const a0 = 1 + alpha,      a1 = -2 * cosW,    a2 = 1 - alpha
+  return { b0: b0/a0, b1: b1/a0, b2: b2/a0, a1: a1/a0, a2: a2/a0 }
+}
+
+function hpfCoeffsList() {
+  if (!hpf.value.enabled) return []
+  const n = (hpf.value.slope ?? 12) / 12
+  const c = hpfBiquad(hpf.value.freq)
+  return Array(n).fill(c)
+}
+
+// ── HPF throttle & send ────────────────────────────────────
+let hpfThrottleTimer = null
+let hpfLastSend = 0
+
+function throttledSendHpf() {
+  const now = Date.now()
+  clearTimeout(hpfThrottleTimer)
+  if (now - hpfLastSend >= THROTTLE_MS) {
+    hpfLastSend = now
+    sendHpf()
+  } else {
+    hpfThrottleTimer = setTimeout(() => {
+      hpfLastSend = Date.now()
+      sendHpf()
+    }, THROTTLE_MS - (now - hpfLastSend))
+  }
+}
+
+function sendHpf() {
+  if (!props.channel) return
+  const ids = [props.channel?.id, props.channelRight?.id].filter(Boolean)
+  for (const id of ids) {
+    socket.emit('dsp:hpf', {
+      id,
+      type:    props.channelType,
+      enabled: hpf.value.enabled,
+      freq:    hpf.value.freq,
+      slope:   hpf.value.slope,
+    })
+  }
+}
+
+function toggleHpf() {
+  hpf.value.enabled = !hpf.value.enabled
+  sendHpf()
+}
+
+function onHpfPointerdown(e) {
+  e.preventDefault()
+  hpfSelected.value = true
+
+  isDragging = true
+  clearTimeout(dragCooldownTimer)
+  let moved = false
+  const onMove = (me) => {
+    moved = true
+    const { x } = svgPt(me)
+    hpf.value.freq = Math.round(Math.max(20, Math.min(FREQ_MAX, xToFreq(x))))
+    throttledSendHpf()
+  }
+  const onUp = () => {
+    if (moved) { clearTimeout(hpfThrottleTimer); sendHpf() }
+    dragCooldownTimer = setTimeout(() => { isDragging = false }, DRAG_COOLDOWN_MS)
+    window.removeEventListener('pointermove', onMove)
+    window.removeEventListener('pointerup', onUp)
+  }
+  window.addEventListener('pointermove', onMove)
+  window.addEventListener('pointerup', onUp)
+}
+
+function setHpfFreq(val) {
+  hpf.value.freq = Math.round(Math.max(20, Math.min(FREQ_MAX, Number(val) || 80)))
+  throttledSendHpf()
+}
+
 // ── Frequency response ─────────────────────────────────────
 const NUM_PTS = 280
 
@@ -196,6 +291,7 @@ const curvePts = computed(() => {
   // bypass ON 이면 필터 없음 → 0dB 플랫 커브
   const coeffsList = []
   if (!bypass.value) {
+    for (const c of hpfCoeffsList()) coeffsList.push(c)
     for (const b of bands.value) {
       if (!b.enabled) continue
       const c = bandCoeffs(b)
@@ -339,20 +435,16 @@ function sendBand(bandIdx) {
 function toggleBypass() {
   if (!bypass.value) {
     // 바이패스 ON: 현재 enabled 상태 저장 후 전체 비활성화
-    savedEnabled = { bands: bands.value.map((b) => b.enabled) }
+    savedEnabled = { bands: bands.value.map((b) => b.enabled), hpf: hpf.value.enabled }
     bypass.value = true
-    bands.value.forEach((b, idx) => {
-      b.enabled = false
-      sendBand(idx)
-    })
+    bands.value.forEach((b, idx) => { b.enabled = false; sendBand(idx) })
+    hpf.value.enabled = false; sendHpf()
   } else {
     // 바이패스 OFF: 저장된 상태 복원 + 전체 계수 재전송
     bypass.value = false
     if (savedEnabled) {
-      bands.value.forEach((b, idx) => {
-        b.enabled = savedEnabled.bands[idx]
-        sendBand(idx)
-      })
+      bands.value.forEach((b, idx) => { b.enabled = savedEnabled.bands[idx]; sendBand(idx) })
+      hpf.value.enabled = savedEnabled.hpf; sendHpf()
       savedEnabled = null
     }
   }
@@ -417,16 +509,6 @@ function setQ(val) {
   throttledSendBand(selectedIdx.value)
 }
 
-// ── Formatting ─────────────────────────────────────────────
-function fmtFreqFull(f) {
-  return f >= 1000 ? (f / 1000).toFixed(1) + ' kHz' : Math.round(f) + ' Hz'
-}
-function fmtGain(g) {
-  return g === 0 ? '0.0 dB' : (g > 0 ? '+' : '') + Number(g).toFixed(1) + ' dB'
-}
-function fmtQ(q) {
-  return Number(q).toFixed(2)
-}
 </script>
 
 <template>
@@ -528,6 +610,36 @@ function fmtQ(q) {
               {{ fmtFL(f) }}
             </text>
 
+            <!-- HPF handle -->
+            <g clip-path="url(#eq-plot-clip)">
+              <g
+                v-if="hpf.enabled || hpfSelected"
+                class="band-handle"
+                @pointerdown="onHpfPointerdown"
+              >
+                <line
+                  :x1="freqToX(hpf.freq)" y1="0"
+                  :x2="freqToX(hpf.freq)" :y2="PH"
+                  :stroke="HPF_COLOR" stroke-width="1.5"
+                  stroke-dasharray="4,2" opacity="0.65"
+                />
+                <circle
+                  :cx="freqToX(hpf.freq)" :cy="PH * 0.5"
+                  r="9"
+                  :fill="HPF_COLOR" :fill-opacity="hpf.enabled ? 0.22 : 0.06"
+                  :stroke="HPF_COLOR" :stroke-width="hpfSelected ? 2.5 : 1.5"
+                  :stroke-opacity="hpf.enabled ? 1 : 0.35"
+                />
+                <circle :cx="freqToX(hpf.freq)" :cy="PH * 0.5" r="3.5" :fill="HPF_COLOR" :fill-opacity="hpf.enabled ? 1 : 0.2" />
+                <text
+                  :x="freqToX(hpf.freq)" :y="PH * 0.5 - 14"
+                  text-anchor="middle" font-size="8" font-weight="700"
+                  :fill="HPF_COLOR" :fill-opacity="hpf.enabled ? 1 : 0.5"
+                  font-family="sans-serif"
+                >HPF</text>
+              </g>
+            </g>
+
             <!-- Band handles -->
             <g clip-path="url(#eq-plot-clip)">
             <g
@@ -598,13 +710,32 @@ function fmtQ(q) {
 
           <q-separator vertical class="q-mx-xs" style="height: 24px" />
 
+          <!-- HPF pill -->
+          <div
+            class="band-pill"
+            :class="{ 'band-pill--sel': hpfSelected, 'band-pill--on': hpf.enabled }"
+            style="--bc: #ef5350"
+            @click="hpfSelected = true; selectedIdx = -1"
+          >
+            <span class="bp-dot" />
+            <span class="bp-label">HPF</span>
+            <q-btn
+              flat round dense size="xs"
+              :icon="hpf.enabled ? 'radio_button_checked' : 'radio_button_unchecked'"
+              :style="`color: #ef5350; opacity: ${hpf.enabled ? 1 : 0.4}`"
+              @click.stop="toggleHpf"
+            />
+          </div>
+
+          <q-separator vertical class="q-mx-xs" style="height: 24px" />
+
           <div
             v-for="(h, i) in handles"
             :key="'bp' + i"
             class="band-pill"
             :class="{ 'band-pill--sel': selectedIdx === i, 'band-pill--on': h.enabled }"
             :style="`--bc: ${h.color}`"
-            @click="selectedIdx = i"
+            @click="selectedIdx = i; hpfSelected = false"
           >
             <span class="bp-dot" />
             <span class="bp-label">{{ BAND_LABELS[i] }}</span>
@@ -620,8 +751,54 @@ function fmtQ(q) {
           </div>
         </div>
 
+        <!-- HPF controls -->
+        <div v-if="hpfSelected" class="band-detail q-mt-sm">
+          <div class="row items-center q-mb-sm">
+            <span class="detail-title" :style="`color:${HPF_COLOR}`">HPF</span>
+            <q-space />
+            <q-toggle
+              :model-value="hpf.enabled"
+              checked-icon="check" unchecked-icon="close"
+              dense color="red-6"
+              @update:model-value="toggleHpf"
+            />
+          </div>
+          <div class="row q-gutter-sm">
+            <!-- Freq -->
+            <div class="col ctrl-col">
+              <div class="ctrl-label">Frequency</div>
+              <input
+                type="range" class="ctrl-range"
+                :value="freqToX(hpf.freq)" :min="0" :max="PW" step="1"
+                :style="`--rc:${HPF_COLOR}`"
+                @input="setHpfFreq(xToFreq(Number($event.target.value)))"
+              />
+              <div class="ctrl-num-row">
+                <input
+                  type="number" class="ctrl-num"
+                  :value="hpf.freq" min="20" max="2000" step="1"
+                  @change="setHpfFreq($event.target.value)"
+                />
+                <span class="ctrl-unit">Hz</span>
+              </div>
+            </div>
+            <!-- Slope -->
+            <div class="col ctrl-col">
+              <div class="ctrl-label">Slope</div>
+              <div class="hpf-slope-group">
+                <button
+                  v-for="s in HPF_SLOPES" :key="s"
+                  class="hpf-slope-btn"
+                  :class="{ 'hpf-slope-btn--on': hpf.slope === s }"
+                  @click="hpf.slope = s; sendHpf()"
+                >{{ s }}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Selected band controls -->
-        <div class="band-detail q-mt-sm">
+        <div v-else class="band-detail q-mt-sm">
           <div class="row items-center q-mb-sm">
             <span class="detail-title" :style="`color:${selColor}`">
               {{ BAND_LABELS[selectedIdx] }}
@@ -659,9 +836,6 @@ function fmtQ(q) {
             <!-- Freq (always shown) -->
             <div class="col ctrl-col">
               <div class="ctrl-label">Frequency</div>
-              <div class="ctrl-val">
-                {{ fmtFreqFull(selBand?.freq ?? 0) }}
-              </div>
               <input
                 type="range"
                 class="ctrl-range"
@@ -672,21 +846,23 @@ function fmtQ(q) {
                 :style="`--rc:${selColor}`"
                 @input="setFreq(xToFreq(Number($event.target.value)))"
               />
-              <input
-                type="number"
-                class="ctrl-num"
-                :value="selBand?.freq"
-                min="20"
-                max="20000"
-                step="1"
-                @change="setFreq($event.target.value)"
-              />
+              <div class="ctrl-num-row">
+                <input
+                  type="number"
+                  class="ctrl-num"
+                  :value="selBand?.freq"
+                  min="20"
+                  max="20000"
+                  step="1"
+                  @change="setFreq($event.target.value)"
+                />
+                <span class="ctrl-unit">Hz</span>
+              </div>
             </div>
 
             <!-- Gain -->
             <div v-if="selBand" class="col ctrl-col">
               <div class="ctrl-label">Gain</div>
-              <div class="ctrl-val">{{ fmtGain(selBand?.gain ?? 0) }}</div>
               <input
                 type="range"
                 class="ctrl-range"
@@ -697,21 +873,23 @@ function fmtQ(q) {
                 :style="`--rc:${selColor}`"
                 @input="setGain($event.target.value)"
               />
-              <input
-                type="number"
-                class="ctrl-num"
-                :value="selBand?.gain ?? 0"
-                min="-15"
-                max="15"
-                step="0.5"
-                @change="setGain($event.target.value)"
-              />
+              <div class="ctrl-num-row">
+                <input
+                  type="number"
+                  class="ctrl-num"
+                  :value="selBand?.gain ?? 0"
+                  min="-15"
+                  max="15"
+                  step="0.5"
+                  @change="setGain($event.target.value)"
+                />
+                <span class="ctrl-unit">dB</span>
+              </div>
             </div>
 
             <!-- Q / Slope -->
             <div v-if="selBand" class="col ctrl-col">
               <div class="ctrl-label">{{ selIsShelf ? 'Slope' : 'Q' }}</div>
-              <div class="ctrl-val">{{ fmtQ(selBand?.q ?? 1) }}</div>
               <input
                 type="range"
                 class="ctrl-range"
@@ -889,14 +1067,6 @@ function fmtQ(q) {
   color: #90a4ae;
   margin-bottom: 2px;
 }
-.ctrl-val {
-  font-size: 13px;
-  font-weight: 600;
-  font-family: 'Courier New', monospace;
-  color: #37474f;
-  margin-bottom: 4px;
-  min-height: 20px;
-}
 .ctrl-range {
   -webkit-appearance: none;
   appearance: none;
@@ -906,7 +1076,7 @@ function fmtQ(q) {
   background: #dce1e7;
   outline: none;
   cursor: pointer;
-  margin-bottom: 6px;
+  margin-bottom: 14px;
 }
 .ctrl-range::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -925,8 +1095,18 @@ function fmtQ(q) {
   border: none;
   cursor: pointer;
 }
+.ctrl-num-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.ctrl-unit {
+  font-size: 11px;
+  color: #90a4ae;
+  white-space: nowrap;
+}
 .ctrl-num {
-  width: 80px;
+  width: 72px;
   font-size: 12px;
   padding: 3px 6px;
   border: 1px solid #cfd8dc;
@@ -939,6 +1119,25 @@ function fmtQ(q) {
   border-color: #90caf9;
   background: #e3f2fd;
 }
+
+.hpf-slope-group {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+.hpf-slope-btn {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border: 1px solid #cfd8dc;
+  border-radius: 3px;
+  background: #f5f7fa;
+  color: #546e7a;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.hpf-slope-btn:hover { border-color: #ef5350; background: #ffebee; color: #ef5350; }
+.hpf-slope-btn--on   { background: #ef5350; border-color: #ef5350; color: #fff; }
 
 /* Dark mode */
 .body--dark .eq-card {
@@ -960,9 +1159,6 @@ function fmtQ(q) {
 .body--dark .band-detail {
   background: #161622;
   border-color: #2a3444;
-}
-.body--dark .ctrl-val {
-  color: #cfd8dc;
 }
 .body--dark .ctrl-num {
   background: #1e2030;
