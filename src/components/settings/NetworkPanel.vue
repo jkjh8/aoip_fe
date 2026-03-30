@@ -1,61 +1,24 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue'
-import { useSettingsStore } from 'src/stores/settings'
+import { onMounted } from 'vue'
+import { useSettingsStore } from 'src/stores/settings.js'
 import { useQuasar } from 'quasar'
+import { storeToRefs } from 'pinia'
+import { ruleExists, ruleIp } from 'src/composables/useRules.js'
 
 const store = useSettingsStore()
 const $q = useQuasar()
-const mode  = ref('static') // 'dhcp' | 'static'
-const form  = ref({ ip: '', subnet: '', gateway: '', dns: '' })
-const errors = ref({ ip: '', subnet: '', gateway: '', dns: '' })
+const { network } = storeToRefs(store)
 
-const fields = [
-  { key: 'ip',      label: 'IP Address',  placeholder: '192.168.0.100', required: true  },
-  { key: 'subnet',  label: 'Subnet Mask', placeholder: '255.255.255.0', required: true  },
-  { key: 'gateway', label: 'Gateway',     placeholder: '192.168.0.1',   required: false },
-  { key: 'dns',     label: 'DNS',         placeholder: '8.8.8.8',       required: false },
-]
-
-const readonlyFields = [
-  { key: 'mac', label: 'MAC Address' },
-]
-
-const IP_RE = /^(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)(\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)){3}$/
-
-function validateIp(val) {
-  if (!val) return ''
-  return IP_RE.test(val) ? '' : 'Invalid IP address'
-}
-
-function onBlur(key) {
-  errors.value[key] = validateIp(form.value[key])
-}
-
-function validateAll() {
-  if (mode.value === 'dhcp') return true
-  let valid = true
-  for (const f of fields) {
-    const err = validateIp(form.value[f.key])
-    errors.value[f.key] = err
-    if (err || (f.required && !form.value[f.key])) valid = false
-  }
-  return valid
-}
-
-watch(() => store.network, (v) => {
-  mode.value = v.mode ?? 'static'
-  form.value = { ...v }
-}, { immediate: true })
-onMounted(() => store.fetchNetwork())
+onMounted(() => {
+  $q.loading.show()
+  store.fetchNetwork()
+  $q.loading.hide()
+  console.log('network settings loaded:', network.value)
+})
 
 async function save() {
-  if (!validateAll()) {
-    $q.notify({ type: 'negative', message: 'Please correct the invalid fields.' })
-    return
-  }
-  const payload = mode.value === 'dhcp'
-    ? { mode: 'dhcp' }
-    : { mode: 'static', ...form.value }
+  const payload =
+    network.value.mode === 'dhcp' ? { mode: 'dhcp' } : { mode: 'static', ...network.value }
   const res = await store.saveNetwork(payload)
   if (res?.ok) {
     $q.notify({ type: 'positive', message: 'Network settings saved.' })
@@ -63,141 +26,106 @@ async function save() {
     $q.notify({ type: 'negative', message: res?.error ?? 'Failed to save' })
   }
 }
-
 </script>
 
 <template>
-  <q-card flat bordered class="net-card">
-    <q-card-section class="section-head">
-      <q-icon name="lan" size="16px" class="q-mr-xs" />
-      <span class="section-title">Network Settings</span>
+  <q-card flat bordered>
+    <q-card-section class="row no-wrap justify-between q-pt-sm q-pb-xs">
+      <div class="row no-wrap items-center">
+        <q-icon name="lan" size="1.5rem" class="q-mr-xs" />
+        <span class="item-title">Network Settings</span>
+      </div>
+      <span class="text-caption">{{ network.mac }}</span>
     </q-card-section>
     <q-separator />
+    <q-item>
+      <q-item-section>
+        <q-item-label class="item-label">DHCP</q-item-label>
+      </q-item-section>
+      <q-item-section side>
+        <q-toggle
+          :model-value="network.mode === 'dhcp'"
+          color="blue-7"
+          dense
+          @update:model-value="network.mode = $event ? 'dhcp' : 'static'"
+        />
+      </q-item-section>
+    </q-item>
 
-    <div v-if="store.networkLoading" class="row justify-center q-py-lg">
-      <q-spinner size="24px" color="blue-7" />
-    </div>
+    <!-- Static fields -->
+    <q-form @submit.prevent="save">
+      <q-item>
+        <q-item-section>
+          <q-item-label class="item-label">IP Address</q-item-label>
+        </q-item-section>
+        <q-item-section side>
+          <q-input
+            v-model="network.ip"
+            :disable="network.mode === 'dhcp'"
+            dense
+            filled
+            hide-bottom-space
+            :rules="[ruleExists, ruleIp]"
+            lazy-rules
+          />
+        </q-item-section>
+      </q-item>
+      <q-item>
+        <q-item-section>
+          <q-item-label class="item-label">Subnet Mask</q-item-label>
+        </q-item-section>
+        <q-item-section side>
+          <q-input
+            v-model="network.subnet"
+            :disable="network.mode === 'dhcp'"
+            dense
+            filled
+            hide-bottom-space
+            :rules="[ruleExists, ruleIp]"
+            lazy-rules
+          />
+        </q-item-section>
+      </q-item>
+      <q-item>
+        <q-item-section>
+          <q-item-label class="item-label">Gateway</q-item-label>
+        </q-item-section>
+        <q-item-section side>
+          <q-input
+            v-model="network.gateway"
+            :disable="network.mode === 'dhcp'"
+            dense
+            filled
+            hide-bottom-space
+            :rules="[ruleExists, ruleIp]"
+            lazy-rules
+          />
+        </q-item-section>
+      </q-item>
+      <q-item>
+        <q-item-section>
+          <q-item-label class="item-label">DNS</q-item-label>
+        </q-item-section>
+        <q-item-section side>
+          <q-input
+            v-model="network.dns"
+            :disable="network.mode === 'dhcp'"
+            dense
+            filled
+            hide-bottom-space
+            :rules="[ruleExists, ruleIp]"
+            lazy-rules
+          />
+        </q-item-section>
+      </q-item>
 
-    <template v-else>
-      <!-- MAC (read-only) -->
-      <div v-for="f in readonlyFields" :key="f.key" class="net-row">
-        <span class="net-label">{{ f.label }}</span>
-        <span class="net-readonly">{{ store.network[f.key] || '—' }}</span>
-      </div>
-
-      <!-- Mode toggle -->
-      <div class="net-row">
-        <span class="net-label">Mode</span>
-        <div class="mode-group">
-          <button class="mode-btn" :class="{ 'mode-btn--on': mode === 'dhcp' }"
-            @click="mode = 'dhcp'">DHCP</button>
-          <button class="mode-btn" :class="{ 'mode-btn--on': mode === 'static' }"
-            @click="mode = 'static'">Static</button>
-        </div>
-      </div>
-
-      <!-- Static fields -->
-      <template v-if="mode === 'static'">
-        <div v-for="f in fields" :key="f.key" class="net-row">
-          <span class="net-label">{{ f.label }}</span>
-          <div class="net-input-wrap">
-            <input
-              v-model="form[f.key]"
-              class="net-input"
-              :class="{ 'net-input--error': errors[f.key] }"
-              :placeholder="f.placeholder"
-              @blur="onBlur(f.key)"
-            />
-            <span v-if="errors[f.key]" class="net-error">{{ errors[f.key] }}</span>
-          </div>
-        </div>
-      </template>
-
-      <q-separator />
-
-      <div class="net-actions">
-        <q-btn label="Save" color="blue-7" unelevated size="sm"
-          :loading="store.networkSaving" @click="save" />
-      </div>
-    </template>
+      <q-card-actions align="right" class="q-pr-md">
+        <q-btn round unelevated icon="check" color="primary" size="sm" type="submit">
+          <q-tooltip>Apply</q-tooltip>
+        </q-btn>
+      </q-card-actions>
+    </q-form>
   </q-card>
 </template>
 
-<style scoped>
-.net-card { border-radius: 8px; }
-
-.section-head {
-  display: flex;
-  align-items: center;
-  padding: 10px 16px;
-}
-.section-title {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: #455a64;
-}
-
-.net-row {
-  display: flex;
-  align-items: center;
-  padding: 7px 16px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.net-label {
-  width: 110px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #546e7a;
-  flex-shrink: 0;
-}
-
-.net-input-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  max-width: 200px;
-}
-.net-input {
-  width: 100%;
-  font-size: 13px;
-  padding: 3px 6px;
-  border: 1px solid #cfd8dc;
-  border-radius: 3px;
-  outline: none;
-  color: #37474f;
-  background: #fff;
-}
-.net-input:focus { border-color: #90caf9; background: #e3f2fd; }
-.net-input--error { border-color: #ef5350; background: #fff8f8; }
-.net-error { font-size: 10px; color: #ef5350; }
-.mode-group { display: flex; gap: 4px; }
-.mode-btn {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 12px;
-  border: 1px solid #cfd8dc;
-  border-radius: 3px;
-  background: #f5f7fa;
-  color: #546e7a;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.mode-btn:hover { border-color: #90caf9; color: #1565c0; }
-.mode-btn--on { background: #1565c0; border-color: #1565c0; color: #fff; }
-
-.net-readonly {
-  font-size: 13px;
-  font-family: 'Courier New', monospace;
-  color: #78909c;
-}
-
-.net-actions {
-  display: flex;
-  gap: 8px;
-  padding: 12px 16px;
-}
-</style>
+<style scoped></style>

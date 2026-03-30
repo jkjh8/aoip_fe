@@ -7,6 +7,7 @@ export const useSettingsStore = defineStore('settings', {
     // USB audio device
     usbEnabled: false,
     usbLoading: false,
+    usbPeriod: 256,
 
     // Network
     network: { mode: 'static', ip: '', subnet: '', gateway: '', dns: '', mac: '' },
@@ -23,6 +24,7 @@ export const useSettingsStore = defineStore('settings', {
       try {
         const { data } = await api.get('/system/usb')
         if (data?.enabled !== undefined) this.usbEnabled = data.enabled
+        if (data?.period !== undefined) this.usbPeriod = data.period
       } catch (e) {
         console.error('[USB] fetch failed:', e.message)
       }
@@ -50,16 +52,26 @@ export const useSettingsStore = defineStore('settings', {
       }
     },
 
+    async setUsbPeriod(period) {
+      this.usbLoading = true
+      try {
+        const { data } = await api.post('/system/usb/period', { period })
+        if (data?.ok) this.usbPeriod = period
+        return data
+      } catch (e) {
+        return { ok: false, error: e.message }
+      } finally {
+        this.usbLoading = false
+      }
+    },
+
     // ── Network (REST only) ───────────────────────────────────
     async fetchNetwork(iface = 'eth0') {
-      this.networkLoading = true
       try {
         const { data } = await api.get('/system/network', { params: { iface } })
         Object.assign(this.network, data)
       } catch (e) {
         console.error('[network] fetch failed:', e.message)
-      } finally {
-        this.networkLoading = false
       }
     },
 

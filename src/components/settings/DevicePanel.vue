@@ -1,65 +1,41 @@
 <script setup>
 import { onMounted } from 'vue'
 import { useSettingsStore } from 'src/stores/settings'
+import { storeToRefs } from 'pinia'
 
 const store = useSettingsStore()
+const { usbPeriod } = storeToRefs(store)
 onMounted(() => store.fetchUsb())
-
-async function toggle() {
-  const res = await store.setUsb(!store.usbEnabled)
-  if (!res?.ok) console.error('[USB] set failed:', res?.error)
-}
 </script>
 
 <template>
-  <q-card flat bordered class="net-card">
-    <q-card-section class="section-head">
-      <q-icon name="devices" size="16px" class="q-mr-xs" />
-      <span class="section-title">Device</span>
+  <q-card flat bordered>
+    <q-card-section class="q-pt-sm q-pb-xs">
+      <q-icon name="devices" size="1.5rem" class="q-mr-sm q-pb-xs" />
+      <span class="item-title">Device</span>
     </q-card-section>
     <q-separator />
-
-    <div class="net-row">
-      <span class="net-label">USB Audio</span>
-      <div class="row items-center q-gutter-sm">
-        <q-toggle
-          :model-value="store.usbEnabled"
-          :disable="store.usbLoading"
-          color="blue-7"
+    <q-item>
+      <q-item-section>
+        <q-item-label class="item-label">USB Audio Buffer</q-item-label>
+      </q-item-section>
+      <q-item-section side>
+        <q-select
+          v-model="usbPeriod"
+          :options="[
+            { label: '128', value: 128 },
+            { label: '256', value: 256 },
+            { label: '512', value: 512 },
+            { label: '1024', value: 1024 },
+          ]"
+          filled
           dense
-          @update:model-value="toggle"
+          @update:model-value="store.setUsbPeriod"
+          emit-value
         />
-        <q-spinner v-if="store.usbLoading" size="16px" color="blue-7" />
-      </div>
-    </div>
+      </q-item-section>
+    </q-item>
   </q-card>
 </template>
 
-<style scoped>
-.net-card { border-radius: 8px; }
-.section-head {
-  display: flex;
-  align-items: center;
-  padding: 10px 16px;
-}
-.section-title {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: #455a64;
-}
-.net-row {
-  display: flex;
-  align-items: center;
-  padding: 7px 16px;
-  border-bottom: 1px solid #f0f0f0;
-}
-.net-label {
-  width: 110px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #546e7a;
-  flex-shrink: 0;
-}
-</style>
+<style scoped></style>
