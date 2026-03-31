@@ -1,47 +1,43 @@
 <script setup>
-import { ref } from 'vue'
-import { socket } from 'src/boot/socket'
+import { ref, computed } from 'vue'
 
 const props = defineProps({
-  s:      { type: Object, required: true },
+  s: { type: Object, required: true },
   detail: { type: Object, default: () => ({}) },
 })
 
-const emit = defineEmits(['refresh'])
+// ── 편집 폼 (정지 상태에서만 사용) ───────────────────
+const portInput = ref('')
+const bufInput = ref('')
+const addressInput = ref('')
+const channelsInput = ref(null) // null = 현재값 유지
+const protocolInput = ref(null) // null = 현재값 유지
 
-// ── Port ─────────────────────────────────────────────────
-const portInput  = ref('')
-const portBusy   = ref(false)
-const portNotify = ref(null)
+const currentPort = computed(() => props.detail?.port ?? '—')
+const currentBuf = computed(() => props.detail?.bufferMs ?? 100)
+const currentAddress = computed(() => props.detail?.address ?? '0.0.0.0')
+const currentChannels = computed(() => props.detail?.channels ?? 2)
+const currentProtocol = computed(() => props.detail?.protocol ?? 'rtp')
 
-function applyPort() {
-  portBusy.value = true
-  portNotify.value = null
-  socket.emit('rtp:in:config', { client: props.s.client, port: Number(portInput.value) }, (res) => {
-    portBusy.value = false
-    portNotify.value = res?.ok ? 'ok' : 'err'
-    if (res?.ok) { portInput.value = ''; emit('refresh') }
-    setTimeout(() => { portNotify.value = null }, 2500)
-  })
+/** StreamPanel의 Start 버튼이 REST POST body로 사용할 config */
+function getPendingConfig() {
+  const cfg = {}
+  if (portInput.value) cfg.port = Number(portInput.value)
+  if (bufInput.value) cfg.bufferMs = Number(bufInput.value)
+  if (addressInput.value) cfg.address = addressInput.value.trim()
+  if (channelsInput.value) cfg.channels = channelsInput.value
+  if (protocolInput.value) cfg.protocol = protocolInput.value
+
+  if (!cfg.port && props.detail?.port) cfg.port = props.detail.port
+  if (!cfg.bufferMs && props.detail?.bufferMs) cfg.bufferMs = props.detail.bufferMs
+  if (!cfg.address) cfg.address = currentAddress.value
+  if (!cfg.channels) cfg.channels = currentChannels.value
+  if (!cfg.protocol) cfg.protocol = currentProtocol.value
+
+  return cfg
 }
 
-// ── Buffer ────────────────────────────────────────────────
-const bufInput  = ref('')
-const bufBusy   = ref(false)
-const bufNotify = ref(null)
-
-function applyBuffer() {
-  bufBusy.value = true
-  bufNotify.value = null
-  socket.emit('rtp:in:config', { client: props.s.client, bufferMs: Number(bufInput.value) }, (res) => {
-    bufBusy.value = false
-    bufNotify.value = res?.ok ? 'ok' : 'err'
-    if (res?.ok) { bufInput.value = ''; emit('refresh') }
-    setTimeout(() => { bufNotify.value = null }, 2500)
-  })
-}
-
-defineExpose({})
+defineExpose({ getPendingConfig })
 </script>
 
 <template>
@@ -60,7 +56,10 @@ defineExpose({})
     </div>
     <div class="info-row">
       <span class="info-key">Format</span>
-      <span class="info-val" :class="s.stats?.codec && s.stats.codec !== 'unknown' ? '' : 'info-muted'">
+      <span
+        class="info-val"
+        :class="s.stats?.codec && s.stats.codec !== 'unknown' ? '' : 'info-muted'"
+      >
         {{ s.stats?.codec && s.stats.codec !== 'unknown' ? s.stats.codec : '—' }}
       </span>
     </div>
@@ -89,59 +88,133 @@ defineExpose({})
   </div>
   <q-separator />
 
-  <!-- Config — hidden while running -->
+  <!-- 수신 설정 표시 (항상)
+  <div class="st-section-label">Config</div>
+  <div class="st-strip info-grid">
+    <div class="info-row">
+      <span class="info-key">Protocol</span>
+      <span class="info-val">
+        <span class="cfg-tag">{{ (detail?.protocol ?? 'rtp').toUpperCase() }}</span>
+      </span>
+    </div>
+    <div class="info-row">
+      <span class="info-key">Address</span>
+      <span class="info-val" :class="detail?.address && detail.address !== '0.0.0.0' ? '' : 'info-muted'">
+        {{ detail?.address ?? '0.0.0.0' }}
+      </span>
+    </div>
+    <div class="info-row">
+      <span class="info-key">Port</span>
+      <span class="info-val">{{ detail?.port ?? '—' }}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-key">Channels</span>
+      <span class="info-val">{{ (detail?.channels ?? 2) === 1 ? 'Mono' : 'Stereo' }}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-key">Buffer</span>
+      <span class="info-val">{{ detail?.bufferMs ?? 100 }} ms</span>
+    </div>
+  </div> -->
+  <q-separator />
+
+  <!-- Config 편집 — 정지 상태에서만 표시, Start 버튼 클릭 시 일괄 전송 -->
   <template v-if="!s.running">
-    <!-- UDP Receive Port -->
+    <div class="cfg-hint">Start 시 아래 설정이 적용됩니다</div>
+
+    <!-- Protocol -->
     <div class="st-section-label">
-      UDP Receive Port
-      <span class="val-current">Current: {{ detail?.port ?? '—' }}</span>
+      Protocol
+      <span class="val-current">Current: {{ currentProtocol.toUpperCase() }}</span>
     </div>
     <div class="st-strip st-strip--form">
-      <input
-        v-model="portInput"
-        class="st-input st-input--flex"
-        placeholder="New port"
-        type="number"
-        @keydown.enter="applyPort"
-      />
-      <q-btn flat dense size="sm" icon="check" color="green-7"
-        :loading="portBusy" :disable="!portInput"
-        @click="applyPort"
-      >
-        <q-tooltip class="bg-grey-4 text-grey-9" anchor="top middle" self="bottom middle" :offset="[0, 4]">Apply Port</q-tooltip>
-      </q-btn>
-      <transition name="fade">
-        <span v-if="portNotify === 'ok'" class="notify notify--ok"><q-icon name="check_circle" size="13px" /> Applied</span>
-        <span v-else-if="portNotify === 'err'" class="notify notify--err"><q-icon name="error" size="13px" /> Failed</span>
-      </transition>
+      <div class="seg-group">
+        <button
+          class="seg-btn"
+          :class="{ 'seg-btn--on': (protocolInput ?? currentProtocol) === 'rtp' }"
+          @click="protocolInput = 'rtp'"
+        >
+          RTP
+        </button>
+        <button
+          class="seg-btn"
+          :class="{ 'seg-btn--on': (protocolInput ?? currentProtocol) === 'raw' }"
+          @click="protocolInput = 'raw'"
+        >
+          UDP Raw
+        </button>
+      </div>
     </div>
-    <q-separator />
+
+    <!-- Address -->
+    <div class="st-section-label">
+      Address
+      <span class="val-current">Current: {{ currentAddress }}</span>
+    </div>
+    <div class="st-strip">
+      <q-input
+        v-model="addressInput"
+        dense
+        outlined
+        placeholder="0.0.0.0 또는 멀티캐스트 239.x.x.x"
+        class="cfg-input"
+      />
+    </div>
+
+    <!-- Port -->
+    <div class="st-section-label">
+      UDP Receive Port
+      <span class="val-current">Current: {{ currentPort }}</span>
+    </div>
+    <div class="st-strip">
+      <q-input
+        v-model="portInput"
+        dense
+        outlined
+        placeholder="비우면 현재값 유지"
+        type="number"
+        class="cfg-input"
+      />
+    </div>
 
     <!-- Buffer -->
     <div class="st-section-label">
       Buffer
-      <span class="val-current">Current: {{ detail?.bufferMs ?? 100 }} ms</span>
+      <span class="val-current">Current: {{ currentBuf }} ms</span>
+    </div>
+    <div class="st-strip">
+      <q-input
+        v-model="bufInput"
+        dense
+        outlined
+        placeholder="ms, 비우면 현재값 유지"
+        type="number"
+        class="cfg-input"
+      />
+    </div>
+
+    <!-- Channels -->
+    <div class="st-section-label">
+      Channels
+      <span class="val-current">Current: {{ currentChannels === 1 ? 'Mono' : 'Stereo' }}</span>
     </div>
     <div class="st-strip st-strip--form">
-      <input
-        v-model="bufInput"
-        class="st-input st-input--flex"
-        placeholder="Buffer size (ms)"
-        type="number"
-        min="10"
-        max="500"
-        @keydown.enter="applyBuffer"
-      />
-      <q-btn flat dense size="sm" icon="check" color="green-7"
-        :loading="bufBusy" :disable="!bufInput"
-        @click="applyBuffer"
-      >
-        <q-tooltip class="bg-grey-4 text-grey-9" anchor="top middle" self="bottom middle" :offset="[0, 4]">Apply Buffer</q-tooltip>
-      </q-btn>
-      <transition name="fade">
-        <span v-if="bufNotify === 'ok'" class="notify notify--ok"><q-icon name="check_circle" size="13px" /> Applied</span>
-        <span v-else-if="bufNotify === 'err'" class="notify notify--err"><q-icon name="error" size="13px" /> Failed</span>
-      </transition>
+      <div class="seg-group">
+        <button
+          class="seg-btn"
+          :class="{ 'seg-btn--on': (channelsInput ?? currentChannels) === 1 }"
+          @click="channelsInput = 1"
+        >
+          Mono
+        </button>
+        <button
+          class="seg-btn"
+          :class="{ 'seg-btn--on': (channelsInput ?? currentChannels) === 2 }"
+          @click="channelsInput = 2"
+        >
+          Stereo
+        </button>
+      </div>
     </div>
   </template>
 </template>
@@ -165,23 +238,24 @@ defineExpose({})
   text-transform: none;
   letter-spacing: 0;
 }
+.cfg-hint {
+  font-size: 11px;
+  color: #90a4ae;
+  padding: 8px 18px 2px;
+  font-style: italic;
+}
 
 .st-strip {
   padding: 8px 18px 12px;
   border-bottom: 1px solid #f0f2f5;
 }
-.st-strip:last-child { border-bottom: none; }
+.st-strip:last-child {
+  border-bottom: none;
+}
 .st-strip--form {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-.st-strip--col {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding-top: 10px;
-  padding-bottom: 16px;
 }
 
 .st-input {
@@ -193,22 +267,56 @@ defineExpose({})
   outline: none;
   background: #fafafa;
 }
-.st-input:focus { border-color: #1976d2; background: #fff; }
-.st-input--flex { flex: 1; min-width: 0; }
+.st-input:focus {
+  border-color: #1976d2;
+  background: #fff;
+}
+.st-input--flex {
+  flex: 1;
+  min-width: 0;
+}
+.cfg-input {
+  width: 100%;
+}
 
-
-.notify {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+.seg-group {
+  display: flex;
+  gap: 6px;
+}
+.seg-btn {
+  background: #f5f5f5;
+  border: 1px solid #cfd8dc;
+  border-radius: 3px;
+  padding: 6px 20px;
   font-size: 13px;
   font-weight: 600;
+  color: #546e7a;
+  cursor: pointer;
+  transition:
+    background 0.1s,
+    border-color 0.1s,
+    color 0.1s;
 }
-.notify--ok  { color: #2e7d32; }
-.notify--err { color: #c62828; }
+.seg-btn:hover {
+  background: #e8f5e9;
+  border-color: #a5d6a7;
+}
+.seg-btn--on {
+  background: #2e7d32;
+  border-color: #2e7d32;
+  color: #fff;
+}
 
-.info-grid { display: flex; flex-direction: column; gap: 6px; }
-.info-row  { display: flex; align-items: center; font-size: 13px; }
+.info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.info-row {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+}
 .info-key {
   font-size: 11px;
   font-weight: 700;
@@ -225,8 +333,22 @@ defineExpose({})
   flex-wrap: wrap;
   gap: 4px;
 }
-.info-muted { color: #b0bec5; }
-.info-warn  { color: #e53935; font-weight: 700; }
+.info-muted {
+  color: #b0bec5;
+}
+.cfg-tag {
+  font-size: 10px;
+  font-weight: 700;
+  background: #e3f2fd;
+  color: #1565c0;
+  padding: 1px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.4px;
+}
+.info-warn {
+  color: #e53935;
+  font-weight: 700;
+}
 
 .ip-chip {
   background: #e8f5e9;
@@ -245,6 +367,12 @@ defineExpose({})
   font-family: 'Courier New', monospace;
 }
 
-.fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
-.fade-enter-from,   .fade-leave-to     { opacity: 0; }
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
 </style>

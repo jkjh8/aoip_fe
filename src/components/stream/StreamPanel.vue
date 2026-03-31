@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue'
-import { socket } from 'src/boot/socket'
-import RtpInPanel from './RtpInPanel.vue'
+import { api } from 'src/boot/axios'
+import RtpInPanel  from './RtpInPanel.vue'
 import RtpOutPanel from './RtpOutPanel.vue'
 
 const props = defineProps({
@@ -12,11 +12,23 @@ const props = defineProps({
 const emit = defineEmits(['refresh'])
 
 const busy = ref(false)
+const rtpInRef = ref(null)
 
-function toggleStream() {
-  const ev = props.s.running ? 'rtp:stream:stop' : 'rtp:stream:start'
+async function toggleStream() {
   busy.value = true
-  socket.emit(ev, { client: props.s.client }, () => { busy.value = false })
+  try {
+    if (props.s.running) {
+      await api.post(`/streams/rtp/${props.s.client}/stop`)
+    } else {
+      const cfg = rtpInRef.value?.getPendingConfig?.() ?? {}
+      await api.post(`/streams/rtp/${props.s.client}/start`, cfg)
+    }
+    emit('refresh', props.s.client)
+  } catch (e) {
+    console.error('[stream] toggle failed', e)
+  } finally {
+    busy.value = false
+  }
 }
 
 function hasTargets() {
@@ -53,7 +65,13 @@ function statusText() {
           :color="s.type === 'rtp_in' ? 'green-7' : 'blue-7'"
         />
         <span class="st-panel-title">{{ detail?.name ?? s.client }}</span>
-        <span v-if="s.type === 'rtp_in' && detail?.port" class="port-badge">:{{ detail.port }}</span>
+        <template v-if="s.type === 'rtp_in'">
+          <span v-if="detail?.address && detail.address !== '0.0.0.0'" class="port-badge">
+            {{ detail.address }}:{{ detail.port }}
+          </span>
+          <span v-else-if="detail?.port" class="port-badge">:{{ detail.port }}</span>
+          <span v-if="detail?.protocol" class="proto-badge">{{ detail.protocol.toUpperCase() }}</span>
+        </template>
         <span class="run-dot" :class="statusDotClass()" />
         <span class="run-label" :class="statusLabelClass()">{{ statusText() }}</span>
       </div>
@@ -76,7 +94,7 @@ function statusText() {
     </div>
     <q-separator />
 
-    <RtpInPanel  v-if="s.type === 'rtp_in'"  :s="s" :detail="detail" @refresh="emit('refresh', s.client)" />
+    <RtpInPanel  v-if="s.type === 'rtp_in'"  ref="rtpInRef" :s="s" :detail="detail" @refresh="emit('refresh', s.client)" />
     <RtpOutPanel v-else                       :s="s" :detail="detail" @refresh="emit('refresh', s.client)" />
   </div>
 </template>
@@ -132,6 +150,17 @@ function statusText() {
 .run-dot--on        { background: #43a047; box-shadow: 0 0 0 2px #c8e6c9; }
 .run-dot--off       { background: #bdbdbd; }
 .run-dot--streaming { background: #00acc1; box-shadow: 0 0 0 2px #b2ebf2; }
+
+.proto-badge {
+  font-size: 10px;
+  font-weight: 800;
+  color: #2e7d32;
+  background: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  border-radius: 3px;
+  padding: 1px 6px;
+  letter-spacing: 0.4px;
+}
 
 .port-badge {
   font-size: 12px;

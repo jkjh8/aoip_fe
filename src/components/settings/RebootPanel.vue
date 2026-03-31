@@ -15,60 +15,95 @@ function doReboot() {
 </script>
 
 <template>
-  <q-card flat bordered class="net-card">
-    <q-card-section class="section-head">
-      <q-icon name="settings_power" size="16px" class="q-mr-xs" />
-      <span class="section-title">System</span>
-    </q-card-section>
+  <div class="st-panel">
+    <div class="st-panel-head">
+      <q-icon name="settings_power" size="16px" color="red-7" />
+      <span class="st-panel-title">System</span>
+    </div>
     <q-separator />
 
-    <div class="net-row">
-      <span class="net-label">Reboot</span>
-      <q-btn round flat color="red-7" icon="power_settings_new" size="sm"
+    <div class="st-section-label">Power</div>
+    <div class="st-strip st-strip--row">
+      <span class="row-label">Reboot</span>
+      <q-btn
+        flat dense round
+        icon="power_settings_new"
+        color="red-7"
+        size="sm"
         :disable="store.rebooting"
-        @click="confirm = true" />
+        @click="confirm = true"
+      >
+        <q-tooltip class="bg-grey-4 text-grey-9" anchor="top middle" self="bottom middle" :offset="[0,4]">Reboot device</q-tooltip>
+      </q-btn>
     </div>
-  </q-card>
+  </div>
 
+  <!-- Confirm dialog -->
   <q-dialog v-model="confirm">
     <q-card style="min-width:280px">
-      <q-card-section class="row items-center q-pb-none">
-        <q-icon name="warning" color="red-7" size="22px" class="q-mr-sm" />
-        <span class="text-subtitle2">Confirm Reboot</span>
+      <q-card-section class="dialog-head">
+        <q-icon name="warning" color="red-7" size="20px" />
+        <span class="dialog-title">Confirm Reboot</span>
       </q-card-section>
-      <q-card-section>The device will reboot. Are you sure?</q-card-section>
-      <q-card-actions align="right">
-        <q-btn flat label="Cancel" v-close-popup />
-        <q-btn flat label="Reboot" color="red-7" @click="doReboot" />
+      <q-separator />
+      <q-card-section class="dialog-body">
+        The device will reboot. Are you sure?
+      </q-card-section>
+      <q-separator />
+      <q-card-actions align="right" class="q-px-md q-pb-sm">
+        <q-btn flat label="Cancel" color="grey-7" v-close-popup />
+        <q-btn unelevated label="Reboot" color="red-7" @click="doReboot" />
       </q-card-actions>
     </q-card>
   </q-dialog>
 </template>
 
 <style scoped>
-.net-card { border-radius: 8px; }
-.section-head {
+.st-panel {
+  background: #fff;
+  border: 1px solid #e4e6ea;
+  border-radius: 4px;
+}
+.st-panel-head {
   display: flex;
   align-items: center;
-  padding: 10px 16px;
+  gap: 9px;
+  padding: 14px 18px;
 }
-.section-title {
-  font-size: 12px;
+.st-panel-title { font-size: 16px; font-weight: 600; color: #37474f; }
+
+.st-section-label {
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 1px;
+  color: #90a4ae;
+  letter-spacing: 0.8px;
   text-transform: uppercase;
-  color: #455a64;
+  padding: 10px 18px 5px;
 }
-.net-row {
+.st-strip {
+  padding: 8px 18px 12px;
+  border-bottom: 1px solid #f0f2f5;
+}
+.st-strip:last-child { border-bottom: none; }
+.st-strip--row {
   display: flex;
   align-items: center;
-  padding: 7px 16px;
+  gap: 12px;
 }
-.net-label {
-  width: 110px;
-  font-size: 12px;
+.row-label {
+  font-size: 13px;
   font-weight: 600;
   color: #546e7a;
+  width: 110px;
   flex-shrink: 0;
 }
+
+.dialog-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+}
+.dialog-title { font-size: 15px; font-weight: 700; color: #37474f; }
+.dialog-body  { padding: 12px 20px; font-size: 14px; color: #546e7a; }
 </style>
