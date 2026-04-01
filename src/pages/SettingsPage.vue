@@ -1,7 +1,7 @@
 <script setup>
 import NetworkPanel from 'src/components/settings/NetworkPanel.vue'
-import DevicePanel  from 'src/components/settings/DevicePanel.vue'
-import RebootPanel  from 'src/components/settings/RebootPanel.vue'
+import DevicePanel from 'src/components/settings/DevicePanel.vue'
+import RebootPanel from 'src/components/settings/RebootPanel.vue'
 </script>
 
 <template>
@@ -24,7 +24,7 @@ import RebootPanel  from 'src/components/settings/RebootPanel.vue'
   flex-direction: column;
   gap: 16px;
   padding: 20px 24px;
-  max-width: 520px;
+  max-width: 500px;
   margin: 0 auto;
 }
 </style>

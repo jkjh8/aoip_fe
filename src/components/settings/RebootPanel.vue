@@ -16,39 +16,45 @@ function doReboot() {
 
 <template>
   <div class="st-panel">
-    <div class="st-panel-head">
+    <div class="row no-wrap items-center q-px-lg q-py-md">
       <q-icon name="settings_power" size="16px" color="red-7" />
       <span class="st-panel-title">System</span>
     </div>
     <q-separator />
 
     <div class="st-section-label">Power</div>
-    <div class="st-strip st-strip--row">
+    <div class="row no-wrap justify-between items-center q-px-md q-my-sm">
       <span class="row-label">Reboot</span>
       <q-btn
-        flat dense round
+        flat
+        dense
+        round
         icon="power_settings_new"
         color="red-7"
         size="sm"
         :disable="store.rebooting"
         @click="confirm = true"
       >
-        <q-tooltip class="bg-grey-4 text-grey-9" anchor="top middle" self="bottom middle" :offset="[0,4]">Reboot device</q-tooltip>
+        <q-tooltip
+          class="bg-grey-4 text-grey-9"
+          anchor="top middle"
+          self="bottom middle"
+          :offset="[0, 4]"
+          >Reboot device</q-tooltip
+        >
       </q-btn>
     </div>
   </div>
 
   <!-- Confirm dialog -->
   <q-dialog v-model="confirm">
-    <q-card style="min-width:280px">
+    <q-card style="min-width: 280px">
       <q-card-section class="dialog-head">
         <q-icon name="warning" color="red-7" size="20px" />
         <span class="dialog-title">Confirm Reboot</span>
       </q-card-section>
       <q-separator />
-      <q-card-section class="dialog-body">
-        The device will reboot. Are you sure?
-      </q-card-section>
+      <q-card-section class="dialog-body"> The device will reboot. Are you sure? </q-card-section>
       <q-separator />
       <q-card-actions align="right" class="q-px-md q-pb-sm">
         <q-btn flat label="Cancel" color="grey-7" v-close-popup />
@@ -70,7 +76,11 @@ function doReboot() {
   gap: 9px;
   padding: 14px 18px;
 }
-.st-panel-title { font-size: 16px; font-weight: 600; color: #37474f; }
+.st-panel-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #37474f;
+}
 
 .st-section-label {
   font-size: 11px;
@@ -84,7 +94,9 @@ function doReboot() {
   padding: 8px 18px 12px;
   border-bottom: 1px solid #f0f2f5;
 }
-.st-strip:last-child { border-bottom: none; }
+.st-strip:last-child {
+  border-bottom: none;
+}
 .st-strip--row {
   display: flex;
   align-items: center;
@@ -104,6 +116,14 @@ function doReboot() {
   gap: 10px;
   padding: 14px 20px;
 }
-.dialog-title { font-size: 15px; font-weight: 700; color: #37474f; }
-.dialog-body  { padding: 12px 20px; font-size: 14px; color: #546e7a; }
+.dialog-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #37474f;
+}
+.dialog-body {
+  padding: 12px 20px;
+  font-size: 14px;
+  color: #546e7a;
+}
 </style>
