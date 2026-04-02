@@ -4,7 +4,7 @@ import { useSettingsStore } from 'src/stores/settings'
 import { storeToRefs } from 'pinia'
 
 const store = useSettingsStore()
-const { usbPeriod } = storeToRefs(store)
+const { usbEnabled, usbConnected, usbLoading, usbPeriod } = storeToRefs(store)
 onMounted(() => store.fetchUsb())
 </script>
 
@@ -17,7 +17,29 @@ onMounted(() => store.fetchUsb())
     <q-separator />
 
     <div class="st-section-label">USB Audio</div>
-    <div class="row no-wrap justify-between items-center q-px-md q-gutter-x-md">
+
+    <!-- Enable/Disable toggle -->
+    <div class="row no-wrap justify-between items-center q-px-md q-py-sm q-gutter-x-md">
+      <div class="row no-wrap items-center q-gutter-x-sm">
+        <span class="row-label">Enable</span>
+        <span class="usb-conn-dot" :class="usbConnected ? 'usb-conn-dot--on' : 'usb-conn-dot--off'" />
+        <span class="usb-conn-label" :class="usbConnected ? 'usb-conn-label--on' : 'usb-conn-label--off'">
+          {{ usbConnected ? 'Connected' : 'Disconnected' }}
+        </span>
+      </div>
+      <q-toggle
+        :model-value="usbEnabled"
+        :loading="usbLoading"
+        color="blue-7"
+        dense
+        @update:model-value="store.setUsb"
+      />
+    </div>
+
+    <q-separator inset />
+
+    <!-- Buffer Size -->
+    <div class="row no-wrap justify-between items-center q-px-md q-py-sm q-gutter-x-md">
       <span class="row-label">Buffer Size</span>
       <q-select
         v-model="usbPeriod"
@@ -39,6 +61,19 @@ onMounted(() => store.fetchUsb())
 </template>
 
 <style scoped>
+.usb-conn-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.usb-conn-dot--on  { background: #43a047; box-shadow: 0 0 0 2px #c8e6c9; }
+.usb-conn-dot--off { background: #bdbdbd; }
+
+.usb-conn-label { font-size: 11px; font-weight: 600; }
+.usb-conn-label--on  { color: #2e7d32; }
+.usb-conn-label--off { color: #9e9e9e; }
+
 .row-select {
   width: 100px;
 }

@@ -6,6 +6,7 @@ export const useSettingsStore = defineStore('settings', {
   state: () => ({
     // USB audio device
     usbEnabled: false,
+    usbConnected: false,
     usbLoading: false,
     usbPeriod: 256,
 
@@ -22,9 +23,13 @@ export const useSettingsStore = defineStore('settings', {
     // ── USB ──────────────────────────────────────────────────
     async fetchUsb() {
       try {
-        const { data } = await api.get('/system/usb')
-        if (data?.enabled !== undefined) this.usbEnabled = data.enabled
-        if (data?.period !== undefined) this.usbPeriod = data.period
+        const [r1, r2] = await Promise.all([
+          api.get('/system/usb'),
+          api.get('/system/usb/enabled'),
+        ])
+        if (r1.data?.period !== undefined) this.usbPeriod = r1.data.period
+        if (r2.data?.enabled !== undefined) this.usbEnabled = r2.data.enabled
+        if (r2.data?.connected !== undefined) this.usbConnected = r2.data.connected
       } catch (e) {
         console.error('[USB] fetch failed:', e.message)
       }
@@ -41,7 +46,7 @@ export const useSettingsStore = defineStore('settings', {
             })
           })
         } else {
-          const { data } = await api.post('/system/usb', { enabled })
+          const { data } = await api.post('/system/usb/enabled', { enabled })
           if (data?.ok) this.usbEnabled = data.enabled
           return data
         }

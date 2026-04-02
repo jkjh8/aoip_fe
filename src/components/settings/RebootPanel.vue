@@ -31,7 +31,7 @@ function doReboot() {
         round
         icon="power_settings_new"
         color="red-7"
-        size="sm"
+        size="md"
         :disable="store.rebooting"
         @click="confirm = true"
       >

@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { api } from 'src/boot/axios'
 import RtpInPanel  from './RtpInPanel.vue'
 import RtpOutPanel from './RtpOutPanel.vue'
+import StreamMeter from './StreamMeter.vue'
 
 const props = defineProps({
   s:      { type: Object, required: true },
@@ -52,6 +53,7 @@ function statusText() {
   if (props.s.type === 'rtp_in' && props.s.stats?.srcIp) return 'STREAMING'
   return 'READY'
 }
+
 </script>
 
 <template>
@@ -76,6 +78,7 @@ function statusText() {
         <span class="run-label" :class="statusLabelClass()">{{ statusText() }}</span>
       </div>
       <div class="head-right">
+        <StreamMeter :type="s.type" />
         <q-btn
           flat round size="md"
           :icon="s.running ? 'stop_circle' : 'play_circle'"
