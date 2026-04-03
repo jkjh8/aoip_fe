@@ -1,6 +1,11 @@
 <script setup>
 import { ref, watch, onUnmounted, computed } from 'vue'
 import { socket } from 'src/boot/socket'
+import { useAoipStore } from 'src/stores/aoip'
+import { storeToRefs } from 'pinia'
+
+const aoipStore = useAoipStore()
+const { channels } = storeToRefs(aoipStore)
 
 const props = defineProps({
   modelValue: Boolean,
@@ -27,7 +32,21 @@ const gr = computed(() => {
   const v = limMeter.value.pre - limMeter.value.post
   return Math.max(0, Math.min(30, v))
 })
-const grPct = computed(() => (gr.value / 30) * 100)
+const grPct = computed(() => {
+  if (enabled.value) {
+    return (gr.value / 30) * 100
+  } else {
+    return 0
+  }
+})
+
+// ── Level meter (input level) ──────────────────────────────
+const levelVal = computed(() => {
+  return channels.value.outputs[props.channel.id - 1].level ?? -60
+})
+const levelPct = computed(() => {
+  return Math.max(0, Math.min(100, ((levelVal.value + 60) / 60) * 100))
+})
 
 // ── Init from channel DSP state ────────────────────────────
 function initFromChannel() {
@@ -98,21 +117,49 @@ function fmtGr(v) {
   return v < 0.1 ? '0.0 dB' : '-' + v.toFixed(1) + ' dB'
 }
 
-// ── Direct number input handlers ───────────────────────────
-function setThreshold(val) {
-  threshold.value = Math.max(-30, Math.min(0, Number(val) || 0))
-  send()
+// ── Parameter definitions ──────────────────────────────────
+const paramDefs = [
+  { key: 'threshold', label: 'Threshold', min: -30, max: 0, step: 0.5, unit: 'dBFS' },
+  { key: 'attack', label: 'Attack', min: 0.1, max: 50, step: 0.1, unit: 'ms' },
+  { key: 'release', label: 'Release', min: 10, max: 1000, step: 10, unit: 'ms' },
+  { key: 'makeup', label: 'Makeup', min: 0, max: 20, step: 0.5, unit: 'dB' },
+]
+
+// ── Parameter getter ──────────────────────────────────────
+function getParamValue(key) {
+  switch (key) {
+    case 'threshold':
+      return threshold.value
+    case 'attack':
+      return attack.value
+    case 'release':
+      return release.value
+    case 'makeup':
+      return makeup.value
+    default:
+      return 0
+  }
 }
-function setAttack(val) {
-  attack.value = Math.max(0.1, Math.min(50, Number(val) || 0.1))
-  send()
-}
-function setRelease(val) {
-  release.value = Math.max(10, Math.min(1000, Number(val) || 10))
-  send()
-}
-function setMakeup(val) {
-  makeup.value = Math.max(0, Math.min(20, Number(val) || 0))
+
+// ── Generic parameter setter ────────────────────────────────
+function setParam(key, val) {
+  const def = paramDefs.find((d) => d.key === key)
+  if (!def) return
+  const num = Math.max(def.min, Math.min(def.max, Number(val) || def.min))
+  switch (key) {
+    case 'threshold':
+      threshold.value = num
+      break
+    case 'attack':
+      attack.value = num
+      break
+    case 'release':
+      release.value = num
+      break
+    case 'makeup':
+      makeup.value = num
+      break
+  }
   send()
 }
 </script>
@@ -131,8 +178,8 @@ function setMakeup(val) {
       <q-separator />
 
       <q-card-section class="q-pt-md q-pb-lg q-px-lg">
-        <!-- Enable + GR meter -->
-        <div class="row items-center q-mb-lg" style="gap: 16px">
+        <!-- Enable + Meters (Level + GR) -->
+        <div class="row no-wrap items-center q-mb-lg" style="gap: 16px">
           <q-toggle
             :model-value="enabled"
             checked-icon="check"
@@ -141,91 +188,61 @@ function setMakeup(val) {
             color="red-8"
             @update:model-value="toggle"
           />
-          <div class="gr-meter-wrap">
-            <div class="gr-label">GR</div>
-            <div class="gr-track">
-              <div class="gr-fill" :style="`width:${grPct}%`" />
+          <!-- Level Meter -->
+          <div class="column" style="width: 90%">
+            <div class="gr-meter-wrap">
+              <div class="gr-label" style="color: #42a5f5; width: 24px">Level</div>
+              <div class="gr-track">
+                <div
+                  class="gr-fill"
+                  :style="`width:${levelPct}%;background:linear-gradient(to right,#42a5f5,#1e88e5)`"
+                />
+              </div>
+              <div class="gr-val">{{ levelVal }}</div>
             </div>
-            <div class="gr-val">{{ fmtGr(gr) }}</div>
+            <!-- GR Meter -->
+            <div class="gr-meter-wrap">
+              <div class="gr-label" style="width: 24px">GR</div>
+              <div class="gr-track">
+                <div class="gr-fill" :style="`width:${grPct}%`" />
+              </div>
+              <div class="gr-val">{{ fmtGr(gr) }}</div>
+            </div>
           </div>
         </div>
+
+        <!-- Parameter Inputs -->
         <div class="column q-gutter-y-sm">
-          <!-- Threshold -->
-          <div class="row justify-between items-center">
-            <div class="label">Threshold</div>
-            <div class="row no-wrap q-gutter-x-xs items-center">
-              <q-input
-                class="row-input"
-                outlined
-                type="number"
-                v-model="threshold"
-                min="-30"
-                max="0"
-                step="0.5"
-                :disabled="!enabled"
-                @update:model-value="setThreshold($event)"
-              />
-              <span class="text-caption text-blue-grey-5" style="width: 32px">dBFS</span>
+          <template
+            v-for="(row, rowIdx) in [paramDefs.slice(0, 2), paramDefs.slice(2, 4)]"
+            :key="rowIdx"
+          >
+            <div class="row items-center q-gutter-x-md">
+              <div
+                v-for="param in row"
+                :key="param.key"
+                class="row q-gutter-x-sm items-center flex-1"
+              >
+                <div class="param-label">{{ param.label }}</div>
+                <div class="row items-center q-gutter-x-xs">
+                  <q-input
+                    :model-value="getParamValue(param.key)"
+                    outlined
+                    type="number"
+                    class="row-input"
+                    :min="param.min"
+                    :max="param.max"
+                    :step="param.step"
+                    :disabled="!enabled"
+                    @update:model-value="setParam(param.key, $event)"
+                  />
+                  <span class="text-caption text-blue-grey-5" style="width: 32px">{{
+                    param.unit
+                  }}</span>
+                </div>
+              </div>
             </div>
-          </div>
-
-          <!-- Attack / Release / Makeup (가로 배치) -->
-          <!-- Attack -->
-          <div class="row justify-between items-center">
-            <div class="label">Attack</div>
-            <div class="row items-center q-gutter-x-xs">
-              <q-input
-                v-model="attack"
-                outlined
-                type="number"
-                class="row-input"
-                min="0.1"
-                max="50"
-                step="0.1"
-                :disabled="!enabled"
-                @update:model-value="setAttack($event)"
-              />
-              <span class="text-caption text-blue-grey-5" style="width: 32px">ms</span>
-            </div>
-          </div>
-
-          <!-- Release -->
-          <div class="row justify-between items-center">
-            <div class="label">Release</div>
-            <div class="row items-center q-gutter-x-xs">
-              <q-input
-                v-model="release"
-                outlined
-                type="number"
-                class="row-input"
-                min="10"
-                max="1000"
-                step="10"
-                :disabled="!enabled"
-                @update:model-value="setRelease($event)"
-              />
-              <span class="text-caption text-blue-grey-5" style="width: 32px">ms</span>
-            </div>
-          </div>
-
-          <!-- Makeup -->
-          <div class="row justify-between items-center">
-            <div class="label">Makeup</div>
-            <div class="row items-center q-gutter-x-xs">
-              <q-input
-                v-model="makeup"
-                outlined
-                type="number"
-                class="row-input"
-                min="0"
-                max="20"
-                step="0.5"
-                :disabled="!enabled"
-                @update:model-value="setMakeup($event)"
-              />
-              <span class="text-caption text-blue-grey-5" style="width: 32px">dB</span>
-            </div>
-          </div>
+          </template>
         </div>
       </q-card-section>
     </q-card>
@@ -276,74 +293,18 @@ function setMakeup(val) {
 }
 
 /* Controls */
-
-.ctrl-label {
-  font-size: 9px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  color: #90a4ae;
-  margin-bottom: 2px;
-}
-.ctrl-range {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 100%;
-  height: 4px;
-  border-radius: 2px;
-  background: #dce1e7;
-  outline: none;
-  cursor: pointer;
-  margin-bottom: 14px;
-}
-.ctrl-range::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #ef5350;
-  cursor: pointer;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-}
-.ctrl-range::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #ef5350;
-  border: none;
-  cursor: pointer;
-}
-.ctrl-range:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-
-.ctrl-unit {
+.param-label {
   font-size: 11px;
-  color: #90a4ae;
-  width: 32px;
-}
-.ctrl-num {
-  width: 72px;
-  font-size: 12px;
-  padding: 3px 6px;
-  border: 1px solid #cfd8dc;
-  border-radius: 3px;
-  outline: none;
-  background: #fff;
-  color: #455a64;
-}
-.ctrl-num:focus {
-  border-color: #90caf9;
-  background: #e3f2fd;
-}
-.ctrl-num:disabled {
-  opacity: 0.35;
-  cursor: default;
+  font-weight: 600;
+  color: #546e7a;
+  letter-spacing: 0.3px;
+  width: 80px;
+  flex-shrink: 0;
 }
 
 .row-input {
   width: 72px;
+  height: 28px;
   font-size: 12px;
 }
 

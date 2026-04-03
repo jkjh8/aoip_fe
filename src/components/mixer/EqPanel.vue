@@ -26,7 +26,7 @@ const COLORS = ['#ffa726', '#66bb6a', '#42a5f5', '#ab47bc']
 const BAND_LABELS = ['Band 1', 'Band 2', 'Band 3', 'Band 4']
 
 const HPF_COLOR = '#ef5350'
-const HPF_SLOPES = [12, 24, 48, 96]
+const HPF_SLOPES = [12, 24]
 
 // 밴드별 기본 주파수 배열
 const BAND_FREQS = [100, 500, 2000, 12000]
@@ -710,6 +710,7 @@ const hpfFreqModel = computed({
               checked-icon="check"
               unchecked-icon="close"
               dense
+              div
               color="red-6"
               @update:model-value="toggleHpf"
             />
@@ -719,16 +720,6 @@ const hpfFreqModel = computed({
               <!-- Frequency -->
               <div v-if="!def.isButtonGroup" class="col ctrl-col">
                 <div class="ctrl-label">{{ def.label }}</div>
-                <input
-                  type="range"
-                  class="ctrl-range"
-                  :value="freqToX(hpfFreqModel)"
-                  :min="0"
-                  :max="PW"
-                  step="1"
-                  :style="`--rc:${HPF_COLOR}`"
-                  @input="setHpfFreq(xToFreq(Number($event.target.value)))"
-                />
                 <div class="row items-center q-gutter-x-xs">
                   <q-input
                     v-model.number="hpfFreqModel"

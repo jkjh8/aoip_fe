@@ -15,7 +15,7 @@ function levelPct(level, muted) {
 function levelColor(level) {
   const l = level ?? -100
   if (l > -3) return '#ef5350'
-  if (l > -12) return '#ffa726'
+  if (l > -6) return '#ffa726'
   return '#66bb6a'
 }
 
@@ -27,8 +27,18 @@ function fmtLevel(level) {
 
 <template>
   <div class="lm-wrap">
-    <div v-for="(ch, i) in channels" :key="i" class="lm-bar" :style="channels.length === 1 ? 'width:14px' : ''">
-      <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 6]" class="bg-grey-4 text-grey-9">
+    <div
+      v-for="(ch, i) in channels"
+      :key="i"
+      class="lm-bar"
+      :style="channels.length === 1 ? 'width:14px' : ''"
+    >
+      <q-tooltip
+        anchor="top middle"
+        self="bottom middle"
+        :offset="[0, 6]"
+        class="bg-grey-4 text-grey-9"
+      >
         {{ ch.label ? ch.label + ': ' : '' }}{{ ch.muted ? 'MUTE' : fmtLevel(ch.level) }}
       </q-tooltip>
       <div
