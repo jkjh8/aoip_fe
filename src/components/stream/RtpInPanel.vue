@@ -6,6 +6,8 @@ const props = defineProps({
   detail: { type: Object, default: () => ({}) },
 })
 
+defineEmits(['refresh'])
+
 // ── 편집 폼 (정지 상태에서만 사용) ───────────────────
 const portInput = ref('')
 const bufInput = ref('')
@@ -86,40 +88,10 @@ defineExpose({ getPendingConfig })
       </span>
     </div>
   </div>
-  <q-separator />
-
-  <!-- 수신 설정 표시 (항상)
-  <div class="st-section-label">Config</div>
-  <div class="st-strip info-grid">
-    <div class="info-row">
-      <span class="info-key">Protocol</span>
-      <span class="info-val">
-        <span class="cfg-tag">{{ (detail?.protocol ?? 'rtp').toUpperCase() }}</span>
-      </span>
-    </div>
-    <div class="info-row">
-      <span class="info-key">Address</span>
-      <span class="info-val" :class="detail?.address && detail.address !== '0.0.0.0' ? '' : 'info-muted'">
-        {{ detail?.address ?? '0.0.0.0' }}
-      </span>
-    </div>
-    <div class="info-row">
-      <span class="info-key">Port</span>
-      <span class="info-val">{{ detail?.port ?? '—' }}</span>
-    </div>
-    <div class="info-row">
-      <span class="info-key">Channels</span>
-      <span class="info-val">{{ (detail?.channels ?? 2) === 1 ? 'Mono' : 'Stereo' }}</span>
-    </div>
-    <div class="info-row">
-      <span class="info-key">Buffer</span>
-      <span class="info-val">{{ detail?.bufferMs ?? 100 }} ms</span>
-    </div>
-  </div> -->
-  <q-separator />
 
   <!-- Config 편집 — 정지 상태에서만 표시, Start 버튼 클릭 시 일괄 전송 -->
   <template v-if="!s.running">
+    <q-separator />
     <div class="cfg-hint">Start 시 아래 설정이 적용됩니다</div>
 
     <!-- Protocol -->

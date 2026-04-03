@@ -4,7 +4,7 @@ import { socket } from 'src/boot/socket'
 
 const props = defineProps({
   modelValue: Boolean,
-  channel: Object,      // 기준 채널 (mono 또는 stereo left)
+  channel: Object, // 기준 채널 (mono 또는 stereo left)
   channelRight: Object, // 스테레오 right (없으면 null)
 })
 const emit = defineEmits(['update:modelValue'])
@@ -13,11 +13,11 @@ const emit = defineEmits(['update:modelValue'])
 const DEFAULT = { enabled: false, threshold: -6, attack: 1, release: 100, makeup: 0 }
 
 // ── State ──────────────────────────────────────────────────
-const enabled   = ref(DEFAULT.enabled)
+const enabled = ref(DEFAULT.enabled)
 const threshold = ref(DEFAULT.threshold)
-const attack    = ref(DEFAULT.attack)
-const release   = ref(DEFAULT.release)
-const makeup    = ref(DEFAULT.makeup)
+const attack = ref(DEFAULT.attack)
+const release = ref(DEFAULT.release)
+const makeup = ref(DEFAULT.makeup)
 
 // ── Limiter meter feedback ─────────────────────────────────
 // { pre: dB, post: dB } — levels 이벤트로 수신
@@ -33,11 +33,11 @@ const grPct = computed(() => (gr.value / 30) * 100)
 function initFromChannel() {
   if (!props.channel) return
   const lim = props.channel.dsp?.limiter
-  enabled.value   = lim?.enabled   ?? DEFAULT.enabled
+  enabled.value = lim?.enabled ?? DEFAULT.enabled
   threshold.value = lim?.threshold ?? DEFAULT.threshold
-  attack.value    = lim?.attack    ?? DEFAULT.attack
-  release.value   = lim?.release   ?? DEFAULT.release
-  makeup.value    = lim?.makeup    ?? DEFAULT.makeup
+  attack.value = lim?.attack ?? DEFAULT.attack
+  release.value = lim?.release ?? DEFAULT.release
+  makeup.value = lim?.makeup ?? DEFAULT.makeup
 }
 
 // ── limiter:watch 구독/해제 ────────────────────────────────
@@ -46,21 +46,24 @@ function watchLimiter(on) {
   for (const id of ids) socket.emit('limiter:watch', { id, watch: on })
 }
 
-watch(() => props.modelValue, (v) => {
-  if (v) {
-    initFromChannel()
-    watchLimiter(true)
-  } else {
-    watchLimiter(false)
-    limMeter.value = null
-  }
-})
+watch(
+  () => props.modelValue,
+  (v) => {
+    if (v) {
+      initFromChannel()
+      watchLimiter(true)
+    } else {
+      watchLimiter(false)
+      limMeter.value = null
+    }
+  },
+)
 watch(() => props.channel?.dsp?.limiter, initFromChannel, { deep: true })
 
 // levels 이벤트에서 limiter 피드백 수신
 function onLevels(data) {
   if (!props.modelValue || !props.channel) return
-  const out = data.outputs?.find(o => o.id === props.channel.id)
+  const out = data.outputs?.find((o) => o.id === props.channel.id)
   if (out?.limiter !== undefined) limMeter.value = out.limiter
 }
 socket.on('levels', onLevels)
@@ -77,11 +80,11 @@ function emitLimiter(payload) {
 
 function send() {
   emitLimiter({
-    enabled:   enabled.value,
+    enabled: enabled.value,
     threshold: threshold.value,
-    attack:    attack.value,
-    release:   release.value,
-    makeup:    makeup.value,
+    attack: attack.value,
+    release: release.value,
+    makeup: makeup.value,
   })
 }
 
@@ -118,24 +121,24 @@ function setMakeup(val) {
   <q-dialog :model-value="modelValue" @update:model-value="emit('update:modelValue', $event)">
     <q-card class="lim-card">
       <!-- Header -->
-      <q-card-section class="row items-center no-wrap q-py-sm q-px-md">
-        <q-icon name="compress" size="18px" color="blue-grey-5" class="q-mr-xs" />
-        <span class="lim-title">LIMITER</span>
-        <span class="lim-chname">{{ channel?.label }}</span>
+      <q-card-section class="row justify-start items-center no-wrap q-gutter-x-sm q-py-md q-px-md">
+        <q-icon name="compress" size="1.4rem" color="blue-grey-5" />
+        <span class="item-title">LIMITER</span>
+        <span class="chname">{{ channel?.label }}</span>
         <q-space />
         <q-btn flat round dense icon="close" size="sm" @click="emit('update:modelValue', false)" />
       </q-card-section>
       <q-separator />
 
-      <q-card-section class="q-pt-md q-pb-lg">
-
+      <q-card-section class="q-pt-md q-pb-lg q-px-lg">
         <!-- Enable + GR meter -->
-        <div class="row items-center q-mb-lg" style="gap:16px">
+        <div class="row items-center q-mb-lg" style="gap: 16px">
           <q-toggle
             :model-value="enabled"
             checked-icon="check"
             unchecked-icon="close"
-            dense color="red-8"
+            dense
+            color="red-8"
             @update:model-value="toggle"
           />
           <div class="gr-meter-wrap">
@@ -146,86 +149,83 @@ function setMakeup(val) {
             <div class="gr-val">{{ fmtGr(gr) }}</div>
           </div>
         </div>
-
-        <!-- Threshold -->
-        <div class="ctrl-col q-mb-md">
-          <div class="ctrl-label">Threshold</div>
-          <input type="range" class="ctrl-range"
-            :value="threshold" min="-30" max="0" step="0.5"
-            :disabled="!enabled"
-            @input="threshold = Number($event.target.value)"
-            @change="send"
-          />
-          <div class="ctrl-num-row">
-            <input type="number" class="ctrl-num"
-              :value="threshold" min="-30" max="0" step="0.5"
-              :disabled="!enabled"
-              @change="setThreshold($event.target.value)"
-            />
-            <span class="ctrl-unit">dBFS</span>
-          </div>
-        </div>
-
-        <!-- Attack / Release / Makeup (가로 배치) -->
-        <div class="row q-gutter-md">
-
-          <!-- Attack -->
-          <div class="col ctrl-col">
-            <div class="ctrl-label">Attack</div>
-            <input type="range" class="ctrl-range"
-              :value="attack" min="0.1" max="50" step="0.1"
-              :disabled="!enabled"
-              @input="attack = Number($event.target.value)"
-              @change="send"
-            />
-            <div class="ctrl-num-row">
-              <input type="number" class="ctrl-num"
-                :value="attack" min="0.1" max="50" step="0.1"
+        <div class="column q-gutter-y-sm">
+          <!-- Threshold -->
+          <div class="row justify-between items-center">
+            <div class="label">Threshold</div>
+            <div class="row no-wrap q-gutter-x-xs items-center">
+              <q-input
+                class="row-input"
+                outlined
+                type="number"
+                v-model="threshold"
+                min="-30"
+                max="0"
+                step="0.5"
                 :disabled="!enabled"
-                @change="setAttack($event.target.value)"
+                @update:model-value="setThreshold($event)"
               />
-              <span class="ctrl-unit">ms</span>
+              <span class="text-caption text-blue-grey-5" style="width: 32px">dBFS</span>
+            </div>
+          </div>
+
+          <!-- Attack / Release / Makeup (가로 배치) -->
+          <!-- Attack -->
+          <div class="row justify-between items-center">
+            <div class="label">Attack</div>
+            <div class="row items-center q-gutter-x-xs">
+              <q-input
+                v-model="attack"
+                outlined
+                type="number"
+                class="row-input"
+                min="0.1"
+                max="50"
+                step="0.1"
+                :disabled="!enabled"
+                @update:model-value="setAttack($event)"
+              />
+              <span class="text-caption text-blue-grey-5" style="width: 32px">ms</span>
             </div>
           </div>
 
           <!-- Release -->
-          <div class="col ctrl-col">
-            <div class="ctrl-label">Release</div>
-            <input type="range" class="ctrl-range"
-              :value="release" min="10" max="1000" step="10"
-              :disabled="!enabled"
-              @input="release = Number($event.target.value)"
-              @change="send"
-            />
-            <div class="ctrl-num-row">
-              <input type="number" class="ctrl-num"
-                :value="release" min="10" max="1000" step="10"
+          <div class="row justify-between items-center">
+            <div class="label">Release</div>
+            <div class="row items-center q-gutter-x-xs">
+              <q-input
+                v-model="release"
+                outlined
+                type="number"
+                class="row-input"
+                min="10"
+                max="1000"
+                step="10"
                 :disabled="!enabled"
-                @change="setRelease($event.target.value)"
+                @update:model-value="setRelease($event)"
               />
-              <span class="ctrl-unit">ms</span>
+              <span class="text-caption text-blue-grey-5" style="width: 32px">ms</span>
             </div>
           </div>
 
           <!-- Makeup -->
-          <div class="col ctrl-col">
-            <div class="ctrl-label">Makeup</div>
-            <input type="range" class="ctrl-range"
-              :value="makeup" min="0" max="20" step="0.5"
-              :disabled="!enabled"
-              @input="makeup = Number($event.target.value)"
-              @change="send"
-            />
-            <div class="ctrl-num-row">
-              <input type="number" class="ctrl-num"
-                :value="makeup" min="0" max="20" step="0.5"
+          <div class="row justify-between items-center">
+            <div class="label">Makeup</div>
+            <div class="row items-center q-gutter-x-xs">
+              <q-input
+                v-model="makeup"
+                outlined
+                type="number"
+                class="row-input"
+                min="0"
+                max="20"
+                step="0.5"
                 :disabled="!enabled"
-                @change="setMakeup($event.target.value)"
+                @update:model-value="setMakeup($event)"
               />
-              <span class="ctrl-unit">dB</span>
+              <span class="text-caption text-blue-grey-5" style="width: 32px">dB</span>
             </div>
           </div>
-
         </div>
       </q-card-section>
     </q-card>
@@ -234,26 +234,10 @@ function setMakeup(val) {
 
 <style scoped>
 .lim-card {
-  min-width: 380px;
-  max-width: 440px;
-  width: 100%;
+  min-width: 300px;
+  max-width: 500px;
+  width: 50%;
 }
-.lim-title {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 1.5px;
-  color: #37474f;
-  margin-right: 8px;
-}
-.lim-chname {
-  font-size: 12px;
-  font-weight: 400;
-  color: #78909c;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 /* GR meter */
 .gr-meter-wrap {
   display: flex;
@@ -292,10 +276,7 @@ function setMakeup(val) {
 }
 
 /* Controls */
-.ctrl-col {
-  display: flex;
-  flex-direction: column;
-}
+
 .ctrl-label {
   font-size: 9px;
   font-weight: 700;
@@ -332,16 +313,15 @@ function setMakeup(val) {
   border: none;
   cursor: pointer;
 }
-.ctrl-range:disabled { opacity: 0.35; cursor: default; }
-.ctrl-num-row {
-  display: flex;
-  align-items: center;
-  gap: 5px;
+.ctrl-range:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
+
 .ctrl-unit {
   font-size: 11px;
   color: #90a4ae;
-  white-space: nowrap;
+  width: 32px;
 }
 .ctrl-num {
   width: 72px;
@@ -357,5 +337,30 @@ function setMakeup(val) {
   border-color: #90caf9;
   background: #e3f2fd;
 }
-.ctrl-num:disabled { opacity: 0.35; cursor: default; }
+.ctrl-num:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.row-input {
+  width: 72px;
+  font-size: 12px;
+}
+
+:deep(.row-input .q-field__control) {
+  min-height: 28px !important;
+  height: 28px;
+}
+:deep(.row-input .q-field__native) {
+  padding: 0;
+  min-height: 28px;
+}
+:deep(.row-input .q-field__append) {
+  height: 20px;
+  align-self: center;
+}
+:deep(.row-input input[type='number']::-webkit-inner-spin-button) {
+  transform: scale(0.7);
+  transform-origin: center;
+}
 </style>

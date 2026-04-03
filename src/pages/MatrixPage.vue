@@ -11,17 +11,11 @@ import OutputPanel from 'src/components/mixer/OutputPanel.vue'
       <q-chip color="negative" text-color="white" icon="wifi_off">lost connection</q-chip>
     </div>
 
-    <div v-else class="panels-row q-pa-md">
+    <div v-else class="row justify-center q-pa-md q-gutter-x-md">
       <InputPanel />
       <OutputPanel />
     </div>
   </q-page>
 </template>
 
-<style scoped>
-.panels-row {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-}
-</style>
+<style scoped></style>

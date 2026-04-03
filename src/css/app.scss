@@ -5,6 +5,7 @@ body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   font-size: 14px;
 }
+
 .item-title {
   font-size: 1rem;
   font-weight: 700;
@@ -26,7 +27,15 @@ body {
   color: #90a4ae;
   letter-spacing: 0.8px;
   text-transform: uppercase;
-  padding: 8px 18px 4px;
+}
+
+.chname {
+  font-size: 12px;
+  font-weight: 400;
+  color: #78909c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .ch-panel {
@@ -192,29 +201,6 @@ body {
   flex-shrink: 0;
 }
 
-.level-meters {
-  display: flex;
-  gap: 2px;
-  align-self: stretch;
-  flex-shrink: 0;
-  width: 16px;
-  padding: 6px 0;
-}
-.level-meter {
-  flex: 1;
-  background: #e0e4e8;
-  border-radius: 2px;
-  position: relative;
-  overflow: hidden;
-}
-.level-fill {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  transition: height 0.12s linear;
-}
-
 /* ── Settings panel shared ─────── */
 .st-panel {
   background: #fff;
@@ -268,7 +254,4 @@ body {
 }
 .body--dark .gain-slider::-moz-range-track {
   background: #37474f;
-}
-.body--dark .level-meter {
-  background: #2a3f5f;
 }

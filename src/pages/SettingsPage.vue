@@ -5,8 +5,8 @@ import RebootPanel from 'src/components/settings/RebootPanel.vue'
 </script>
 
 <template>
-  <q-page class="settings-page">
-    <div class="panels-col">
+  <q-page class="row justify-center q-pa-md">
+    <div class="column q-gutter-md">
       <NetworkPanel />
       <DevicePanel />
       <RebootPanel />
@@ -14,17 +14,4 @@ import RebootPanel from 'src/components/settings/RebootPanel.vue'
   </q-page>
 </template>
 
-<style scoped>
-.settings-page {
-  background: #f4f6f8;
-  min-height: 100vh;
-}
-.panels-col {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 20px 24px;
-  max-width: 500px;
-  margin: 0 auto;
-}
-</style>
+<style scoped></style>

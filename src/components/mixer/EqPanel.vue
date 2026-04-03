@@ -1,6 +1,15 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { socket } from 'src/boot/socket'
+import {
+  freqToX,
+  gainToY,
+  xToFreq,
+  yToGain,
+  bandCoeffs,
+  useEqCurve,
+  EQ_CONSTANTS,
+} from 'src/composables/useEqFilter'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -11,25 +20,25 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 // ── Constants ──────────────────────────────────────────────
-const FS = 48000
+const { FREQ_MIN, FREQ_MAX, GAIN_MIN, GAIN_MAX, PL, PT, SVG_W, SVG_H, PW, PH } = EQ_CONSTANTS
 
 const COLORS = ['#ffa726', '#66bb6a', '#42a5f5', '#ab47bc']
 const BAND_LABELS = ['Band 1', 'Band 2', 'Band 3', 'Band 4']
 
-const HPF_COLOR  = '#ef5350'
+const HPF_COLOR = '#ef5350'
 const HPF_SLOPES = [12, 24, 48, 96]
 
-const DEFAULT_BANDS = [
-  { enabled: false, freq: 100, gain: 0, q: 0.7, type: 'peak' }, // ← low_shelf 전환 가능
-  { enabled: false, freq: 500, gain: 0, q: 0.7, type: 'peak' },
-  { enabled: false, freq: 2000, gain: 0, q: 0.7, type: 'peak' },
-  { enabled: false, freq: 8000, gain: 0, q: 0.7, type: 'peak' }, // ← high_shelf 전환 가능
-]
-// 밴드 인덱스별 전환 가능 타입 목록 (없으면 peak 고정)
-const BAND_TYPE_OPTIONS = {
-  0: ['peak', 'low_shelf'],
-  3: ['peak', 'high_shelf'],
-}
+// 밴드별 기본 주파수 배열
+const BAND_FREQS = [100, 500, 2000, 12000]
+const DEFAULT_BANDS = BAND_FREQS.map((freq) => ({
+  enabled: false,
+  freq,
+  gain: 0,
+  q: 0.7,
+  type: 'peak',
+}))
+// 모든 밴드가 세 가지 필터 타입 지원
+const BAND_TYPE_OPTIONS = ['low_shelf', 'peak', 'high_shelf']
 
 // ── State ──────────────────────────────────────────────────
 const bands = ref(DEFAULT_BANDS.map((b) => ({ ...b })))
@@ -74,14 +83,18 @@ function initFromChannel() {
   const dsp = props.channel.dsp
   if (Array.isArray(dsp?.eq)) {
     dsp.eq.forEach((src, i) => {
-      if (bands.value[i])
-        Object.assign(bands.value[i], {
-          enabled: src.enabled,
-          freq: src.freq,
-          gain: src.gain,
-          q: src.q,
-          type: src.bandType ?? src.type ?? 'peak',
-        })
+      if (!bands.value[i]) return
+      const def = DEFAULT_BANDS[i]
+      const freq = Number(src.freq)
+      const gain = Number(src.gain)
+      const q = Number(src.q)
+      Object.assign(bands.value[i], {
+        enabled: src.enabled ?? false,
+        freq: isFinite(freq) ? freq : def.freq,
+        gain: isFinite(gain) ? gain : def.gain,
+        q: isFinite(q) && q > 0 ? q : def.q,
+        type: src.bandType ?? src.type ?? def.type,
+      })
     })
   } else {
     bands.value = DEFAULT_BANDS.map((b) => ({ ...b }))
@@ -89,8 +102,8 @@ function initFromChannel() {
   if (dsp?.hpf) {
     hpf.value = {
       enabled: dsp.hpf.enabled ?? false,
-      freq:    dsp.hpf.freq   ?? 80,
-      slope:   dsp.hpf.slope  ?? 12,
+      freq: dsp.hpf.freq ?? 80,
+      slope: dsp.hpf.slope ?? 12,
     }
   } else {
     hpf.value = { enabled: false, freq: 80, slope: 12 }
@@ -103,120 +116,18 @@ watch(
     if (v) initFromChannel()
   },
 )
-watch(() => props.channel?.dsp, () => { if (!isDragging) initFromChannel() }, { deep: true })
+watch(
+  () => props.channel?.dsp,
+  () => {
+    if (!isDragging) initFromChannel()
+  },
+  { deep: true },
+)
 
-// ── SVG layout ─────────────────────────────────────────────
-const PL = 34,
-  PR = 8,
-  PT = 12,
-  PB = 30
-const SVG_W = 700,
-  SVG_H = 320
-const PW = SVG_W - PL - PR
-const PH = SVG_H - PT - PB
+// ── SVG layout constants imported from useEqFilter ────────────
 
-const FREQ_MIN = 20,
-  FREQ_MAX = 20000
-const GAIN_MIN = -15,
-  GAIN_MAX = 15
-
-function freqToX(f) {
-  return (Math.log10(Math.max(FREQ_MIN, f) / FREQ_MIN) / Math.log10(FREQ_MAX / FREQ_MIN)) * PW
-}
-function gainToY(g) {
-  return (1 - (g - GAIN_MIN) / (GAIN_MAX - GAIN_MIN)) * PH
-}
-function xToFreq(x) {
-  return (
-    FREQ_MIN * Math.pow(10, (Math.max(0, Math.min(PW, x)) / PW) * Math.log10(FREQ_MAX / FREQ_MIN))
-  )
-}
-function yToGain(y) {
-  return GAIN_MAX - (Math.max(0, Math.min(PH, y)) / PH) * (GAIN_MAX - GAIN_MIN)
-}
-
-// ── Biquad ─────────────────────────────────────────────────
-function shelfCoeffs(type, freq, gainDb, q) {
-  const A = Math.pow(10, gainDb / 40)
-  const w0 = (2 * Math.PI * Math.min(freq, FS * 0.499)) / FS
-  const cosW = Math.cos(w0),
-    sinW = Math.sin(w0)
-  const sqA = Math.sqrt(Math.max(0, A))
-  const S = Math.max(0.1, q)
-  const al = (sinW / 2) * Math.sqrt(Math.max(0, (A + 1 / A) * (1 / S - 1) + 2))
-  let b0, b1, b2, a0, a1, a2
-  if (type === 'low_shelf') {
-    b0 = A * (A + 1 - (A - 1) * cosW + 2 * sqA * al)
-    b1 = 2 * A * (A - 1 - (A + 1) * cosW)
-    b2 = A * (A + 1 - (A - 1) * cosW - 2 * sqA * al)
-    a0 = A + 1 + (A - 1) * cosW + 2 * sqA * al
-    a1 = -2 * (A - 1 + (A + 1) * cosW)
-    a2 = A + 1 + (A - 1) * cosW - 2 * sqA * al
-  } else {
-    b0 = A * (A + 1 + (A - 1) * cosW + 2 * sqA * al)
-    b1 = -2 * A * (A - 1 + (A + 1) * cosW)
-    b2 = A * (A + 1 + (A - 1) * cosW - 2 * sqA * al)
-    a0 = A + 1 - (A - 1) * cosW + 2 * sqA * al
-    a1 = 2 * (A - 1 - (A + 1) * cosW)
-    a2 = A + 1 - (A - 1) * cosW - 2 * sqA * al
-  }
-  if (Math.abs(a0) < 1e-10) return null
-  return { b0: b0 / a0, b1: b1 / a0, b2: b2 / a0, a1: a1 / a0, a2: a2 / a0 }
-}
-
-function peakCoeffs(freq, gainDb, q) {
-  const A = Math.pow(10, gainDb / 40)
-  const w0 = (2 * Math.PI * Math.min(freq, FS * 0.499)) / FS
-  const cosW = Math.cos(w0),
-    sinW = Math.sin(w0)
-  const alpha = sinW / (2 * Math.max(0.01, q))
-  const b0 = 1 + alpha * A,
-    b1 = -2 * cosW,
-    b2 = 1 - alpha * A
-  const a0 = 1 + alpha / A,
-    a1 = -2 * cosW,
-    a2 = 1 - alpha / A
-  if (Math.abs(a0) < 1e-10) return null
-  return { b0: b0 / a0, b1: b1 / a0, b2: b2 / a0, a1: a1 / a0, a2: a2 / a0 }
-}
-
-function magSq(c, f) {
-  const w = (2 * Math.PI * f) / FS
-  const cw = Math.cos(w),
-    c2w = Math.cos(2 * w)
-  const n =
-    c.b0 * c.b0 +
-    c.b1 * c.b1 +
-    c.b2 * c.b2 +
-    2 * (c.b0 * c.b1 + c.b1 * c.b2) * cw +
-    2 * c.b0 * c.b2 * c2w
-  const d = 1 + c.a1 * c.a1 + c.a2 * c.a2 + 2 * (c.a1 + c.a1 * c.a2) * cw + 2 * c.a2 * c2w
-  return d > 0 ? Math.max(0, n / d) : 1
-}
-
-function bandCoeffs(b) {
-  if (b.type === 'low_shelf' || b.type === 'high_shelf')
-    return shelfCoeffs(b.type, b.freq, b.gain, b.q)
-  return peakCoeffs(b.freq, b.gain, b.q)
-}
-
-// ── HPF biquad (Butterworth) ───────────────────────────────
-function hpfBiquad(freq) {
-  const Q  = 1 / Math.sqrt(2)
-  const w0 = (2 * Math.PI * Math.min(freq, FS * 0.499)) / FS
-  const cosW = Math.cos(w0), sinW = Math.sin(w0)
-  const alpha = sinW / (2 * Q)
-  const b0 = (1 + cosW) / 2, b1 = -(1 + cosW), b2 = (1 + cosW) / 2
-  const a0 = 1 + alpha,      a1 = -2 * cosW,    a2 = 1 - alpha
-  return { b0: b0/a0, b1: b1/a0, b2: b2/a0, a1: a1/a0, a2: a2/a0 }
-}
-
-function hpfCoeffsList() {
-  if (!hpf.value.enabled) return []
-  const n = (hpf.value.slope ?? 12) / 12
-  const c = hpfBiquad(hpf.value.freq)
-  return Array(n).fill(c)
-}
+// ── EQ Curve calculation ───────────────────────────────────
+const { curvePath, areaPath } = useEqCurve(bands, hpf, bypass)
 
 // ── HPF throttle & send ────────────────────────────────────
 let hpfThrottleTimer = null
@@ -229,10 +140,13 @@ function throttledSendHpf() {
     hpfLastSend = now
     sendHpf()
   } else {
-    hpfThrottleTimer = setTimeout(() => {
-      hpfLastSend = Date.now()
-      sendHpf()
-    }, THROTTLE_MS - (now - hpfLastSend))
+    hpfThrottleTimer = setTimeout(
+      () => {
+        hpfLastSend = Date.now()
+        sendHpf()
+      },
+      THROTTLE_MS - (now - hpfLastSend),
+    )
   }
 }
 
@@ -242,10 +156,10 @@ function sendHpf() {
   for (const id of ids) {
     socket.emit('dsp:hpf', {
       id,
-      type:    props.channelType,
+      type: props.channelType,
       enabled: hpf.value.enabled,
-      freq:    hpf.value.freq,
-      slope:   hpf.value.slope,
+      freq: hpf.value.freq,
+      slope: hpf.value.slope,
     })
   }
 }
@@ -269,8 +183,13 @@ function onHpfPointerdown(e) {
     throttledSendHpf()
   }
   const onUp = () => {
-    if (moved) { clearTimeout(hpfThrottleTimer); sendHpf() }
-    dragCooldownTimer = setTimeout(() => { isDragging = false }, DRAG_COOLDOWN_MS)
+    if (moved) {
+      clearTimeout(hpfThrottleTimer)
+      sendHpf()
+    }
+    dragCooldownTimer = setTimeout(() => {
+      isDragging = false
+    }, DRAG_COOLDOWN_MS)
     window.removeEventListener('pointermove', onMove)
     window.removeEventListener('pointerup', onUp)
   }
@@ -283,44 +202,7 @@ function setHpfFreq(val) {
   throttledSendHpf()
 }
 
-// ── Frequency response ─────────────────────────────────────
-const NUM_PTS = 280
-
-const curvePts = computed(() => {
-  const pts = []
-  // bypass ON 이면 필터 없음 → 0dB 플랫 커브
-  const coeffsList = []
-  if (!bypass.value) {
-    for (const c of hpfCoeffsList()) coeffsList.push(c)
-    for (const b of bands.value) {
-      if (!b.enabled) continue
-      const c = bandCoeffs(b)
-      if (c) coeffsList.push(c)
-    }
-  }
-
-  for (let i = 0; i <= NUM_PTS; i++) {
-    const f = FREQ_MIN * Math.pow(FREQ_MAX / FREQ_MIN, i / NUM_PTS)
-    let ms = 1
-    for (const c of coeffsList) ms *= magSq(c, f)
-    const db = 10 * Math.log10(Math.max(1e-12, ms))
-    pts.push({ x: freqToX(f), y: gainToY(Math.max(GAIN_MIN, Math.min(GAIN_MAX, db))) })
-  }
-  return pts
-})
-
-const curvePath = computed(() => {
-  const pts = curvePts.value
-  return pts.length ? 'M ' + pts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L ') : ''
-})
-
-const areaPath = computed(() => {
-  const pts = curvePts.value
-  if (!pts.length) return ''
-  const zY = gainToY(0).toFixed(1)
-  const line = pts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L ')
-  return `M ${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)} L ${line} L ${pts[pts.length - 1].x.toFixed(1)},${zY} L ${pts[0].x.toFixed(1)},${zY} Z`
-})
+// ── EQ Curve from useEqCurve composable ────────────────────
 
 // ── Band handles (0-3 = peak bands) ───────────────────────
 const handles = computed(() => {
@@ -335,10 +217,8 @@ const handles = computed(() => {
 // ── Grid ───────────────────────────────────────────────────
 // 매 decade 내 모든 정수배 (20~20kHz)
 const FREQ_GRID_MINOR = [
-  20,30,40,50,60,70,80,90,
-  200,300,400,500,600,700,800,900,
-  2000,3000,4000,5000,6000,7000,8000,9000,
-  20000,
+  20, 30, 40, 50, 60, 70, 80, 90, 200, 300, 400, 500, 600, 700, 800, 900, 2000, 3000, 4000, 5000,
+  6000, 7000, 8000, 9000, 20000,
 ]
 const FREQ_GRID_MAJOR = [100, 1000, 10000]
 const FREQ_LABELS = [50, 100, 200, 500, 1000, 2000, 5000, 10000]
@@ -366,6 +246,7 @@ function svgPt(e) {
 function onHandlePointerdown(e, i) {
   e.preventDefault()
   selectedIdx.value = i
+  hpfSelected.value = false
 
   // 드래그 시작 시 해당 밴드 자동 ON
   let autoEnabled = false
@@ -392,7 +273,9 @@ function onHandlePointerdown(e, i) {
       clearTimeout(_sendTimers[i])
       sendBand(i)
     }
-    dragCooldownTimer = setTimeout(() => { isDragging = false }, DRAG_COOLDOWN_MS)
+    dragCooldownTimer = setTimeout(() => {
+      isDragging = false
+    }, DRAG_COOLDOWN_MS)
     window.removeEventListener('pointermove', onMove)
     window.removeEventListener('pointerup', onUp)
   }
@@ -419,6 +302,7 @@ function emitEq(payload) {
 function sendBand(bandIdx) {
   if (!props.channel) return
   const b = bands.value[bandIdx]
+  if (!isFinite(b.freq) || !isFinite(b.gain) || !isFinite(b.q)) return
   const coeffs = bandCoeffs(b)
   emitEq({
     type: props.channelType,
@@ -437,14 +321,22 @@ function toggleBypass() {
     // 바이패스 ON: 현재 enabled 상태 저장 후 전체 비활성화
     savedEnabled = { bands: bands.value.map((b) => b.enabled), hpf: hpf.value.enabled }
     bypass.value = true
-    bands.value.forEach((b, idx) => { b.enabled = false; sendBand(idx) })
-    hpf.value.enabled = false; sendHpf()
+    bands.value.forEach((b, idx) => {
+      b.enabled = false
+      sendBand(idx)
+    })
+    hpf.value.enabled = false
+    sendHpf()
   } else {
     // 바이패스 OFF: 저장된 상태 복원 + 전체 계수 재전송
     bypass.value = false
     if (savedEnabled) {
-      bands.value.forEach((b, idx) => { b.enabled = savedEnabled.bands[idx]; sendBand(idx) })
-      hpf.value.enabled = savedEnabled.hpf; sendHpf()
+      bands.value.forEach((b, idx) => {
+        b.enabled = savedEnabled.bands[idx]
+        sendBand(idx)
+      })
+      hpf.value.enabled = savedEnabled.hpf
+      sendHpf()
       savedEnabled = null
     }
   }
@@ -467,13 +359,10 @@ function toggleHandle(i) {
   sendBand(i)
 }
 
-// ── Type cycling for convertible bands ────────────────────
-function cycleType(bandIdx) {
-  const options = BAND_TYPE_OPTIONS[bandIdx]
-  if (!options) return
+// ── Type setting for convertible bands ────────────────────
+function setType(bandIdx, type) {
   const b = bands.value[bandIdx]
-  const next = options[(options.indexOf(b.type) + 1) % options.length]
-  b.type = next
+  b.type = type
   sendBand(bandIdx)
 }
 
@@ -485,12 +374,29 @@ const selIsShelf = computed(
 )
 const selEnabled = computed(() => selBand.value?.enabled ?? false)
 const selColor = computed(() => COLORS[selectedIdx.value])
-const selTypeOptions = computed(() => BAND_TYPE_OPTIONS[selBandIdx.value] ?? null)
+const selTypeOptions = BAND_TYPE_OPTIONS
 
 const BAND_TYPE_LABEL_MAP = {
   peak: 'Peak',
   low_shelf: 'Low Shelf',
   high_shelf: 'Hi Shelf',
+}
+
+// ── Band control definitions ───────────────────────────────
+const bandControlDefs = [
+  { key: 'freq', label: 'Frequency', unit: 'Hz', min: 20, max: 20000, step: 1 },
+  { key: 'gain', label: 'Gain', unit: 'dB', min: -15, max: 15, step: 0.5 },
+  { key: 'q', label: 'Q', unit: 'oct', min: 0.1, max: 10, step: 0.05, isShelfLabel: 'Slope' },
+]
+
+const hpfControlDefs = [
+  { key: 'freq', label: 'Frequency', unit: 'Hz', min: 20, max: 2000, step: 1 },
+  { key: 'slope', label: 'Slope', unit: '', isButtonGroup: true, options: HPF_SLOPES },
+]
+
+function safe(val, def) {
+  const n = Number(val)
+  return isFinite(n) ? n : def
 }
 
 function setFreq(val) {
@@ -509,16 +415,37 @@ function setQ(val) {
   throttledSendBand(selectedIdx.value)
 }
 
+// ── v-model helpers for q-input ──────────────────────────
+const bandFreqModel = computed({
+  get: () => safe(selBand.value?.freq, DEFAULT_BANDS[selBandIdx.value]?.freq ?? 100),
+  set: (val) => setFreq(val),
+})
+const bandGainModel = computed({
+  get: () => safe(selBand.value?.gain, 0),
+  set: (val) => setGain(val),
+})
+const bandQModel = computed({
+  get: () => safe(selBand.value?.q, 1),
+  set: (val) => setQ(val),
+})
+const hpfFreqModel = computed({
+  get: () => safe(hpf.value.freq, 80),
+  set: (val) => setHpfFreq(val),
+})
 </script>
 
 <template>
   <q-dialog :model-value="modelValue" @update:model-value="emit('update:modelValue', $event)">
     <q-card class="eq-card">
       <!-- Header -->
-      <q-card-section class="row items-center no-wrap q-py-sm q-px-md">
-        <q-icon name="equalizer" size="18px" color="blue-grey-5" class="q-mr-xs" />
-        <span class="eq-title">EQ</span>
-        <span class="eq-chname">{{ channelRight ? channel?.label?.replace(/\s*(CH\d+|[LR]|\d+)$/i, '').trim() : channel?.label }}</span>
+      <q-card-section class="row items-center no-wrap q-py-sm q-px-md q-gutter-x-sm">
+        <q-icon name="equalizer" size="1.4rem" color="blue-grey-5" class="q-mr-xs" />
+        <span class="item-title">EQ</span>
+        <span class="chname">{{
+          channelRight
+            ? channel?.label?.replace(/\s*(CH\d+|[LR]|\d+)$/i, '').trim()
+            : channel?.label
+        }}</span>
         <q-space />
         <q-btn flat round dense icon="close" size="sm" @click="emit('update:modelValue', false)" />
       </q-card-section>
@@ -530,11 +457,11 @@ function setQ(val) {
         <svg :ref="setSvgRef" :viewBox="`0 0 ${SVG_W} ${SVG_H}`" width="100%" class="eq-svg">
           <g :transform="`translate(${PL},${PT})`">
             <defs>
-            <clipPath id="eq-plot-clip">
-              <rect x="0" y="0" :width="PW" :height="PH" />
-            </clipPath>
-          </defs>
-          <rect x="0" y="0" :width="PW" :height="PH" fill="#202025" rx="0" />
+              <clipPath id="eq-plot-clip">
+                <rect x="0" y="0" :width="PW" :height="PH" />
+              </clipPath>
+            </defs>
+            <rect x="0" y="0" :width="PW" :height="PH" fill="#202025" rx="0" />
 
             <!-- Gain grid -->
             <line
@@ -555,7 +482,7 @@ function setQ(val) {
               y1="0"
               :x2="freqToX(f)"
               :y2="PH"
-              stroke="#1e1e2e"
+              stroke="#222233"
               stroke-width="0.75"
             />
             <!-- Freq grid major -->
@@ -618,70 +545,89 @@ function setQ(val) {
                 @pointerdown="onHpfPointerdown"
               >
                 <line
-                  :x1="freqToX(hpf.freq)" y1="0"
-                  :x2="freqToX(hpf.freq)" :y2="PH"
-                  :stroke="HPF_COLOR" stroke-width="1.5"
-                  stroke-dasharray="4,2" opacity="0.65"
+                  :x1="freqToX(hpf.freq)"
+                  y1="0"
+                  :x2="freqToX(hpf.freq)"
+                  :y2="PH"
+                  :stroke="HPF_COLOR"
+                  stroke-width="1.5"
+                  stroke-dasharray="4,2"
+                  opacity="0.65"
                 />
                 <circle
-                  :cx="freqToX(hpf.freq)" :cy="PH * 0.5"
+                  :cx="freqToX(hpf.freq)"
+                  :cy="PH * 0.5"
                   r="9"
-                  :fill="HPF_COLOR" :fill-opacity="hpf.enabled ? 0.22 : 0.06"
-                  :stroke="HPF_COLOR" :stroke-width="hpfSelected ? 2.5 : 1.5"
+                  :fill="HPF_COLOR"
+                  :fill-opacity="hpf.enabled ? 0.22 : 0.06"
+                  :stroke="HPF_COLOR"
+                  :stroke-width="hpfSelected ? 2.5 : 1.5"
                   :stroke-opacity="hpf.enabled ? 1 : 0.35"
                 />
-                <circle :cx="freqToX(hpf.freq)" :cy="PH * 0.5" r="3.5" :fill="HPF_COLOR" :fill-opacity="hpf.enabled ? 1 : 0.2" />
+                <circle
+                  :cx="freqToX(hpf.freq)"
+                  :cy="PH * 0.5"
+                  r="3.5"
+                  :fill="HPF_COLOR"
+                  :fill-opacity="hpf.enabled ? 1 : 0.2"
+                />
                 <text
-                  :x="freqToX(hpf.freq)" :y="PH * 0.5 - 14"
-                  text-anchor="middle" font-size="8" font-weight="700"
-                  :fill="HPF_COLOR" :fill-opacity="hpf.enabled ? 1 : 0.5"
+                  :x="freqToX(hpf.freq)"
+                  :y="PH * 0.5 - 14"
+                  text-anchor="middle"
+                  font-size="8"
+                  font-weight="700"
+                  :fill="HPF_COLOR"
+                  :fill-opacity="hpf.enabled ? 1 : 0.5"
                   font-family="sans-serif"
-                >HPF</text>
+                >
+                  HPF
+                </text>
               </g>
             </g>
 
             <!-- Band handles -->
             <g clip-path="url(#eq-plot-clip)">
-            <g
-              v-for="(h, i) in handles"
-              :key="'h' + i"
-              :transform="`translate(${h.x.toFixed(1)},${h.y.toFixed(1)})`"
-              class="band-handle"
-              @pointerdown="onHandlePointerdown($event, i)"
-              @dblclick.prevent="disableHandle(i)"
-              @wheel.prevent="onHandleWheel($event, i)"
-            >
-              <!-- Selection ring -->
-              <circle
-                v-if="selectedIdx === i"
-                r="14"
-                fill="none"
-                :stroke="h.color"
-                stroke-width="1.5"
-                stroke-dasharray="3,2"
-                opacity="0.8"
-              />
-              <circle
-                r="9"
-                :fill="h.color"
-                :fill-opacity="h.enabled ? 0.22 : 0.06"
-                :stroke="h.color"
-                :stroke-width="selectedIdx === i ? 2.5 : 1.5"
-                :stroke-opacity="h.enabled ? 1 : 0.35"
-              />
-              <circle r="3.5" :fill="h.color" :fill-opacity="h.enabled ? 1 : 0.2" />
-              <text
-                y="-14"
-                text-anchor="middle"
-                font-size="8"
-                font-weight="700"
-                :fill="h.color"
-                :fill-opacity="h.enabled ? 1 : 0.5"
-                font-family="sans-serif"
+              <g
+                v-for="(h, i) in handles"
+                :key="'h' + i"
+                :transform="`translate(${h.x.toFixed(1)},${h.y.toFixed(1)})`"
+                class="band-handle"
+                @pointerdown="onHandlePointerdown($event, i)"
+                @dblclick.prevent="disableHandle(i)"
+                @wheel.prevent="onHandleWheel($event, i)"
               >
-                {{ i + 1 }}
-              </text>
-            </g>
+                <!-- Selection ring -->
+                <circle
+                  v-if="selectedIdx === i"
+                  r="14"
+                  fill="none"
+                  :stroke="h.color"
+                  stroke-width="1.5"
+                  stroke-dasharray="3,2"
+                  opacity="0.8"
+                />
+                <circle
+                  r="9"
+                  :fill="h.color"
+                  :fill-opacity="h.enabled ? 0.22 : 0.06"
+                  :stroke="h.color"
+                  :stroke-width="selectedIdx === i ? 2.5 : 1.5"
+                  :stroke-opacity="h.enabled ? 1 : 0.35"
+                />
+                <circle r="3.5" :fill="h.color" :fill-opacity="h.enabled ? 1 : 0.2" />
+                <text
+                  y="-14"
+                  text-anchor="middle"
+                  font-size="8"
+                  font-weight="700"
+                  :fill="h.color"
+                  :fill-opacity="h.enabled ? 1 : 0.5"
+                  font-family="sans-serif"
+                >
+                  {{ i + 1 }}
+                </text>
+              </g>
             </g>
           </g>
         </svg>
@@ -704,7 +650,7 @@ function setQ(val) {
 
           <!-- 올플랫 -->
           <div class="band-pill flat-pill" @click="allFlat">
-            <q-icon name="horizontal_rule" size="14px" style="color:#78909c" />
+            <q-icon name="horizontal_rule" size="14px" style="color: #78909c" />
             <span class="bp-label">FLAT</span>
           </div>
 
@@ -715,12 +661,15 @@ function setQ(val) {
             class="band-pill"
             :class="{ 'band-pill--sel': hpfSelected, 'band-pill--on': hpf.enabled }"
             style="--bc: #ef5350"
-            @click="hpfSelected = true; selectedIdx = -1"
+            @click="((hpfSelected = true), (selectedIdx = -1))"
           >
             <span class="bp-dot" />
             <span class="bp-label">HPF</span>
             <q-btn
-              flat round dense size="xs"
+              flat
+              round
+              dense
+              size="xs"
               :icon="hpf.enabled ? 'radio_button_checked' : 'radio_button_unchecked'"
               :style="`color: #ef5350; opacity: ${hpf.enabled ? 1 : 0.4}`"
               @click.stop="toggleHpf"
@@ -735,7 +684,7 @@ function setQ(val) {
             class="band-pill"
             :class="{ 'band-pill--sel': selectedIdx === i, 'band-pill--on': h.enabled }"
             :style="`--bc: ${h.color}`"
-            @click="selectedIdx = i; hpfSelected = false"
+            @click="((selectedIdx = i), (hpfSelected = false))"
           >
             <span class="bp-dot" />
             <span class="bp-label">{{ BAND_LABELS[i] }}</span>
@@ -758,42 +707,58 @@ function setQ(val) {
             <q-space />
             <q-toggle
               :model-value="hpf.enabled"
-              checked-icon="check" unchecked-icon="close"
-              dense color="red-6"
+              checked-icon="check"
+              unchecked-icon="close"
+              dense
+              color="red-6"
               @update:model-value="toggleHpf"
             />
           </div>
           <div class="row q-gutter-sm">
-            <!-- Freq -->
-            <div class="col ctrl-col">
-              <div class="ctrl-label">Frequency</div>
-              <input
-                type="range" class="ctrl-range"
-                :value="freqToX(hpf.freq)" :min="0" :max="PW" step="1"
-                :style="`--rc:${HPF_COLOR}`"
-                @input="setHpfFreq(xToFreq(Number($event.target.value)))"
-              />
-              <div class="ctrl-num-row">
+            <template v-for="def in hpfControlDefs" :key="def.key">
+              <!-- Frequency -->
+              <div v-if="!def.isButtonGroup" class="col ctrl-col">
+                <div class="ctrl-label">{{ def.label }}</div>
                 <input
-                  type="number" class="ctrl-num"
-                  :value="hpf.freq" min="20" max="2000" step="1"
-                  @change="setHpfFreq($event.target.value)"
+                  type="range"
+                  class="ctrl-range"
+                  :value="freqToX(hpfFreqModel)"
+                  :min="0"
+                  :max="PW"
+                  step="1"
+                  :style="`--rc:${HPF_COLOR}`"
+                  @input="setHpfFreq(xToFreq(Number($event.target.value)))"
                 />
-                <span class="ctrl-unit">Hz</span>
+                <div class="row items-center q-gutter-x-xs">
+                  <q-input
+                    v-model.number="hpfFreqModel"
+                    outlined
+                    type="number"
+                    class="row-input"
+                    dense
+                    :min="def.min"
+                    :max="def.max"
+                    :step="def.step"
+                  />
+                  <span class="ctrl-unit">{{ def.unit }}</span>
+                </div>
               </div>
-            </div>
-            <!-- Slope -->
-            <div class="col ctrl-col">
-              <div class="ctrl-label">Slope</div>
-              <div class="hpf-slope-group">
-                <button
-                  v-for="s in HPF_SLOPES" :key="s"
-                  class="hpf-slope-btn"
-                  :class="{ 'hpf-slope-btn--on': hpf.slope === s }"
-                  @click="hpf.slope = s; sendHpf()"
-                >{{ s }}</button>
+              <!-- Slope button group -->
+              <div v-else class="col ctrl-col">
+                <div class="ctrl-label">{{ def.label }}</div>
+                <div class="hpf-slope-group">
+                  <button
+                    v-for="s in def.options"
+                    :key="s"
+                    class="hpf-slope-btn"
+                    :class="{ 'hpf-slope-btn--on': hpf.slope === s }"
+                    @click="((hpf.slope = s), sendHpf())"
+                  >
+                    {{ s }}
+                  </button>
+                </div>
               </div>
-            </div>
+            </template>
           </div>
         </div>
 
@@ -807,20 +772,24 @@ function setQ(val) {
               </span>
             </span>
             <q-space />
-            <!-- 타입 전환 버튼 (Band 1, Band 4만 표시) -->
+            <!-- 타입 전환 버튼 (모든 밴드에 표시) -->
             <div v-if="selTypeOptions" class="type-toggle q-mr-sm">
-              <button
+              <q-btn
                 v-for="t in selTypeOptions"
                 :key="t"
-                class="type-btn"
-                :class="{ 'type-btn--active': selBand?.type === t }"
+                flat
+                dense
+                no-caps
+                size="sm"
+                :label="BAND_TYPE_LABEL_MAP[t]"
+                :outline="selBand?.type !== t"
+                :color="selBand?.type === t ? 'white' : 'grey-7'"
+                :class="{ 'type-btn-q--active': selBand?.type === t }"
                 :style="
-                  selBand?.type === t ? `background:${selColor};border-color:${selColor}` : ''
+                  selBand?.type === t ? `background-color:${selColor};border-color:${selColor}` : ''
                 "
-                @click="cycleType(selBandIdx)"
-              >
-                {{ BAND_TYPE_LABEL_MAP[t] }}
-              </button>
+                @click="setType(selBandIdx, t)"
+              />
             </div>
             <q-toggle
               :model-value="selEnabled"
@@ -833,83 +802,50 @@ function setQ(val) {
           </div>
 
           <div class="row q-gutter-sm">
-            <!-- Freq (always shown) -->
-            <div class="col ctrl-col">
-              <div class="ctrl-label">Frequency</div>
-              <input
-                type="range"
-                class="ctrl-range"
-                :value="freqToX(selBand?.freq ?? 100)"
-                :min="0"
-                :max="PW"
-                step="1"
-                :style="`--rc:${selColor}`"
-                @input="setFreq(xToFreq(Number($event.target.value)))"
-              />
-              <div class="ctrl-num-row">
-                <input
-                  type="number"
-                  class="ctrl-num"
-                  :value="selBand?.freq"
-                  min="20"
-                  max="20000"
-                  step="1"
-                  @change="setFreq($event.target.value)"
-                />
-                <span class="ctrl-unit">Hz</span>
+            <template v-for="def in bandControlDefs" :key="def.key">
+              <!-- Freq (always shown) / Gain & Q (conditional on selBand) -->
+              <div v-if="def.key === 'freq' || selBand" class="col ctrl-col">
+                <div class="ctrl-label">
+                  {{ selIsShelf && def.isShelfLabel ? def.isShelfLabel : def.label }}
+                </div>
+                <div class="row items-center q-gutter-x-xs">
+                  <q-input
+                    v-if="def.key === 'freq'"
+                    v-model.number="bandFreqModel"
+                    outlined
+                    type="number"
+                    class="row-input"
+                    dense
+                    :min="def.min"
+                    :max="def.max"
+                    :step="def.step"
+                  />
+                  <q-input
+                    v-else-if="def.key === 'gain'"
+                    v-model.number="bandGainModel"
+                    outlined
+                    type="number"
+                    class="row-input"
+                    dense
+                    :min="def.min"
+                    :max="def.max"
+                    :step="def.step"
+                  />
+                  <q-input
+                    v-else
+                    v-model.number="bandQModel"
+                    outlined
+                    type="number"
+                    class="row-input"
+                    dense
+                    :min="def.min"
+                    :max="def.max"
+                    :step="def.step"
+                  />
+                  <span class="ctrl-unit">{{ def.unit }}</span>
+                </div>
               </div>
-            </div>
-
-            <!-- Gain -->
-            <div v-if="selBand" class="col ctrl-col">
-              <div class="ctrl-label">Gain</div>
-              <input
-                type="range"
-                class="ctrl-range"
-                :value="selBand?.gain ?? 0"
-                min="-15"
-                max="15"
-                step="0.5"
-                :style="`--rc:${selColor}`"
-                @input="setGain($event.target.value)"
-              />
-              <div class="ctrl-num-row">
-                <input
-                  type="number"
-                  class="ctrl-num"
-                  :value="selBand?.gain ?? 0"
-                  min="-15"
-                  max="15"
-                  step="0.5"
-                  @change="setGain($event.target.value)"
-                />
-                <span class="ctrl-unit">dB</span>
-              </div>
-            </div>
-
-            <!-- Q / Slope -->
-            <div v-if="selBand" class="col ctrl-col">
-              <div class="ctrl-label">{{ selIsShelf ? 'Slope' : 'Q' }}</div>
-              <input
-                type="range"
-                class="ctrl-range"
-                :value="selBand?.q ?? 1"
-                min="0.1"
-                max="10"
-                step="0.05"
-                :style="`--rc:${selColor}`"
-                @input="setQ($event.target.value)"
-              />
-              <input
-                type="number"
-                class="ctrl-num"
-                :value="selBand?.q ?? 1"
-                min="0.1"
-                max="10"
-                step="0.05"
-                @change="setQ($event.target.value)"
-              />
-            </div>
+            </template>
           </div>
         </div>
       </q-card-section>
@@ -923,21 +859,6 @@ function setQ(val) {
   max-width: 780px;
   width: 100%;
 }
-
-.eq-title {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: #607d8b;
-  margin-right: 6px;
-}
-.eq-chname {
-  font-size: 14px;
-  font-weight: 600;
-  color: #37474f;
-}
-
 .bypass-pill {
   border-color: #90caf9 !important;
   gap: 5px;
@@ -1037,23 +958,22 @@ function setQ(val) {
   display: flex;
   gap: 2px;
 }
-.type-btn {
-  font-size: 9px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border: 1px solid #cfd8dc;
-  border-radius: 3px;
-  background: #f5f7fa;
-  color: #78909c;
-  cursor: pointer;
-  transition: all 0.15s;
+
+:deep(.type-toggle .q-btn) {
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  padding: 2px 8px !important;
+  min-height: auto !important;
+  height: auto !important;
 }
-.type-btn:hover {
-  border-color: #90a4ae;
-  background: #eceff1;
+
+:deep(.type-toggle .q-btn:not(.type-btn-q--active)) {
+  border-color: #cfd8dc !important;
 }
-.type-btn--active {
-  color: #fff !important;
+
+:deep(.type-toggle .q-btn:not(.type-btn-q--active):hover) {
+  border-color: #90a4ae !important;
+  background-color: #eceff1 !important;
 }
 
 .ctrl-col {
@@ -1136,8 +1056,16 @@ function setQ(val) {
   cursor: pointer;
   transition: all 0.15s;
 }
-.hpf-slope-btn:hover { border-color: #ef5350; background: #ffebee; color: #ef5350; }
-.hpf-slope-btn--on   { background: #ef5350; border-color: #ef5350; color: #fff; }
+.hpf-slope-btn:hover {
+  border-color: #ef5350;
+  background: #ffebee;
+  color: #ef5350;
+}
+.hpf-slope-btn--on {
+  background: #ef5350;
+  border-color: #ef5350;
+  color: #fff;
+}
 
 /* Dark mode */
 .body--dark .eq-card {
@@ -1170,24 +1098,25 @@ function setQ(val) {
   background: #0d1b2e;
 }
 
-.slope-btn {
-  padding: 2px 8px;
-  font-size: 11px;
-  font-weight: 700;
-  border: 1px solid #cfd8dc;
-  border-radius: 4px;
-  background: #f5f5f5;
-  cursor: pointer;
-  color: #546e7a;
-  line-height: 22px;
+.row-input {
+  width: 72px;
+  font-size: 12px;
 }
-.slope-btn:hover {
-  background: #eceff1;
-  border-color: #90a4ae;
+
+:deep(.row-input .q-field__control) {
+  min-height: 28px !important;
+  height: 28px;
 }
-.slope-btn--active {
-  background: #1565c0;
-  border-color: #1565c0;
-  color: #fff;
+:deep(.row-input .q-field__native) {
+  padding: 0;
+  min-height: 28px;
+}
+:deep(.row-input .q-field__append) {
+  height: 20px;
+  align-self: center;
+}
+:deep(.row-input input[type='number']::-webkit-inner-spin-button) {
+  transform: scale(0.7);
+  transform-origin: center;
 }
 </style>

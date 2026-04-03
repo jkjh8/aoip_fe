@@ -99,7 +99,7 @@ function toggleForGroup(inCh, outGroup) {
   <q-dialog v-model="dialogOpen">
     <q-card class="route-dialog">
       <q-card-section class="route-dialog-header">
-        <span class="route-dialog-title">
+        <span class="item-title">
           {{
             routeTarget
               ? routeTarget.stereo

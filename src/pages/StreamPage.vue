@@ -32,15 +32,15 @@ watch(
 </script>
 
 <template>
-  <q-page class="stream-page">
-    <div v-if="!aoipState.connected" class="row justify-center q-mt-xl">
+  <q-page class="row justify-center q-pa-md">
+    <div v-if="!aoipState.connected" class="row justify-center q-pa-md">
       <q-chip color="negative" text-color="white" icon="wifi_off">lost connection</q-chip>
     </div>
 
     <template v-else>
-      <div class="panels-row">
+      <div class="column q-gutter-md" style="width: 100%; max-width: 600px">
         <StreamPanel
-          v-for="s in (aoipState.streams?.rtpStreams ?? [])"
+          v-for="s in aoipState.streams?.rtpStreams ?? []"
           :key="s.client"
           :s="s"
           :detail="details[s.client]"
@@ -56,28 +56,4 @@ watch(
   </q-page>
 </template>
 
-<style scoped>
-.stream-page {
-  background: #f4f6f8;
-  min-height: 100vh;
-}
-
-.panels-row {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 20px 24px;
-  max-width: 720px;
-  margin: 0 auto;
-}
-
-.empty-page {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 60px 0;
-  color: #b0bec5;
-  font-size: 14px;
-}
-</style>
+<style scoped></style>

@@ -5,6 +5,7 @@ import { useAoipStore } from 'src/stores/aoip'
 const aoipState = useAoipStore()
 import { useChannelControl, gainToDb, dbToGain } from 'src/composables/useChannelControl'
 import EqPanel from './EqPanel.vue'
+import LevelMeter from './LevelMeter.vue'
 import LimiterPanel from './LimiterPanel.vue'
 import RoutingDialog from './RoutingDialog.vue'
 
@@ -81,7 +82,7 @@ function inputTypeTag(label) {
   return { text: label.substring(0, 3).toUpperCase(), color: '#546e7a' }
 }
 
-const { editingId, editingVal, toDb, levelPct, levelColor, setGain, toggleMute } =
+const { editingId, editingVal, toDb, setGain, toggleMute } =
   useChannelControl('output')
 
 const channelGroups = computed(() => {
@@ -143,16 +144,6 @@ function groupGain(group) {
 
 function groupKey(group) {
   return group.stereo ? group.left.id : group.ch.id
-}
-
-function chLvlPct(ch, muted) {
-  if (muted) return 0
-  return levelPct(ch?.level)
-}
-
-function fmtLevel(level) {
-  if (level == null || level <= -100) return '-inf'
-  return (level >= 0 ? '+' : '') + level.toFixed(1) + ' dB'
 }
 
 function sliderVal(group) {
@@ -355,52 +346,15 @@ watch(
         </q-btn>
 
         <!-- 레벨 미터 (vertical) -->
-        <div class="level-meters">
-          <template v-if="group.stereo">
-            <div class="level-meter">
-              <div
-                class="level-fill"
-                :style="`height:${chLvlPct(group.left, isMuted(group))}%; background:${levelColor(group.left.level)}`"
-              />
-              <q-tooltip
-                class="bg-grey-4 text-grey-9"
-                anchor="top middle"
-                self="bottom middle"
-                :offset="[0, 6]"
-              >
-                L: {{ fmtLevel(group.left.level) }}
-              </q-tooltip>
-            </div>
-            <div class="level-meter">
-              <div
-                class="level-fill"
-                :style="`height:${chLvlPct(group.right, isMuted(group))}%; background:${levelColor(group.right.level)}`"
-              />
-              <q-tooltip
-                class="bg-grey-4 text-grey-9"
-                anchor="top middle"
-                self="bottom middle"
-                :offset="[0, 6]"
-              >
-                R: {{ fmtLevel(group.right.level) }}
-              </q-tooltip>
-            </div>
-          </template>
-          <div v-else class="level-meter">
-            <div
-              class="level-fill"
-              :style="`height:${chLvlPct(group.ch, isMuted(group))}%; background:${levelColor(group.ch.level)}`"
-            />
-            <q-tooltip
-              class="bg-grey-4 text-grey-9"
-              anchor="top middle"
-              self="bottom middle"
-              :offset="[0, 6]"
-            >
-              {{ fmtLevel(group.ch.level) }}
-            </q-tooltip>
-          </div>
-        </div>
+        <LevelMeter
+          :channels="group.stereo
+            ? [
+                { level: group.left.level, muted: isMuted(group), label: 'L' },
+                { level: group.right.level, muted: isMuted(group), label: 'R' },
+              ]
+            : [{ level: group.ch.level, muted: isMuted(group) }]
+          "
+        />
       </div>
     </template>
 
