@@ -2,7 +2,11 @@ import { defineBoot } from '#q-app/wrappers'
 import { io } from 'socket.io-client'
 import { useAoipStore } from 'src/stores/aoip'
 
-export const socket = io('http://192.168.10.103:3000', {
+const serverUrl = process.env.DEV
+  ? 'http://192.168.10.103:3000'
+  : `${window.location.protocol}//${window.location.hostname}:3000`
+
+export const socket = io(serverUrl, {
   autoConnect: true,
   reconnectionDelay: 2000,
 })
