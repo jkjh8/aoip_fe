@@ -3,6 +3,7 @@ import { ref, watch, onUnmounted, computed } from 'vue'
 import { socket } from 'src/boot/socket'
 import { useAoipStore } from 'src/stores/aoip'
 import { storeToRefs } from 'pinia'
+import HLevelMeter from './HLevelMeter.vue'
 
 const aoipStore = useAoipStore()
 const { channels } = storeToRefs(aoipStore)
@@ -44,10 +45,6 @@ const grPct = computed(() => {
 const levelVal = computed(() => {
   return channels.value.outputs[props.channel.id - 1].level ?? -60
 })
-const levelPct = computed(() => {
-  return Math.max(0, Math.min(100, ((levelVal.value + 60) / 60) * 100))
-})
-
 // ── Init from channel DSP state ────────────────────────────
 function initFromChannel() {
   if (!props.channel) return
@@ -188,21 +185,12 @@ function setParam(key, val) {
             color="red-8"
             @update:model-value="toggle"
           />
-          <!-- Level Meter -->
-          <div class="column" style="width: 90%">
-            <div class="gr-meter-wrap">
-              <div class="gr-label" style="color: #42a5f5; width: 24px">Level</div>
-              <div class="gr-track">
-                <div
-                  class="gr-fill"
-                  :style="`width:${levelPct}%;background:linear-gradient(to right,#42a5f5,#1e88e5)`"
-                />
-              </div>
-              <div class="gr-val">{{ levelVal }}</div>
-            </div>
+          <!-- Meters -->
+          <div class="column q-gutter-y-xs" style="width: 90%">
+            <HLevelMeter :level="levelVal" label="Level" />
             <!-- GR Meter -->
             <div class="gr-meter-wrap">
-              <div class="gr-label" style="width: 24px">GR</div>
+              <div class="gr-label" style="width: 32px">GR</div>
               <div class="gr-track">
                 <div class="gr-fill" :style="`width:${grPct}%`" />
               </div>
