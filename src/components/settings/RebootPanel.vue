@@ -16,8 +16,8 @@ function doReboot() {
 
 <template>
   <div class="st-panel">
-    <div class="row no-wrap items-center q-px-lg q-py-md">
-      <q-icon name="settings_power" size="16px" color="red-7" />
+    <div class="row no-wrap items-center q-px-lg q-py-md q-gutter-xs">
+      <q-icon name="settings_power" size="1.2rem" color="red-7" style="padding-top: 4px" />
       <span class="st-panel-title">System</span>
     </div>
     <q-separator />
@@ -77,7 +77,7 @@ function doReboot() {
   padding: 14px 18px;
 }
 .st-panel-title {
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 600;
   color: #37474f;
 }

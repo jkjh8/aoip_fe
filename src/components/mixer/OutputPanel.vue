@@ -2,7 +2,11 @@
 import { computed, nextTick, ref, watch } from 'vue'
 // import { socket } from 'src/boot/socket'
 import { useAoipStore } from 'src/stores/aoip'
+import { storeToRefs } from 'pinia'
+import { useSettingsStore } from 'src/stores/settings'
 const aoipState = useAoipStore()
+const { usbConnected } = storeToRefs(useSettingsStore())
+
 import { useChannelControl, gainToDb, dbToGain } from 'src/composables/useChannelControl'
 import EqPanel from './EqPanel.vue'
 import LevelMeter from './LevelMeter.vue'
@@ -203,6 +207,13 @@ function onEditKeydown(e, group) {
   }
 }
 
+function checkUSBConnection(group) {
+  if (group.stereo && group.left.label.toLowerCase().includes('usb')) {
+    return usbConnected.value
+  }
+  return true
+}
+
 watch(
   () => aoipState.channels.outputs.map((c) => c.gain),
   (newGains, oldGains) => {
@@ -222,7 +233,7 @@ watch(
     <q-separator />
     <q-card-section>
       <template v-for="group in channelGroups" :key="groupKey(group)">
-        <div class="ch-strip" :class="{ muted: isMuted(group) }">
+        <div v-if="checkUSBConnection(group)" class="ch-strip" :class="{ muted: isMuted(group) }">
           <!-- 타입 태그 -->
           <span class="ch-tag" :style="`background:${groupTag(group).color}`">
             {{ groupTag(group).text }}

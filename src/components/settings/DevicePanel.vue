@@ -10,7 +10,7 @@ onMounted(() => store.fetchUsb())
 
 <template>
   <div class="st-panel q-pb-sm">
-    <div class="row no-wrap items-center q-px-lg q-py-md q-gutter-x-sm">
+    <div class="row no-wrap items-center q-px-lg q-py-md q-gutter-x-xs">
       <q-icon name="devices" size="20px" color="blue-7" />
       <span class="st-panel-title">Device</span>
     </div>
@@ -22,8 +22,14 @@ onMounted(() => store.fetchUsb())
     <div class="row no-wrap justify-between items-center q-px-md q-py-sm q-gutter-x-md">
       <div class="row no-wrap items-center q-gutter-x-sm">
         <span class="row-label">Enable</span>
-        <span class="usb-conn-dot" :class="usbConnected ? 'usb-conn-dot--on' : 'usb-conn-dot--off'" />
-        <span class="usb-conn-label" :class="usbConnected ? 'usb-conn-label--on' : 'usb-conn-label--off'">
+        <span
+          class="usb-conn-dot"
+          :class="usbConnected ? 'usb-conn-dot--on' : 'usb-conn-dot--off'"
+        />
+        <span
+          class="usb-conn-label"
+          :class="usbConnected ? 'usb-conn-label--on' : 'usb-conn-label--off'"
+        >
           {{ usbConnected ? 'Connected' : 'Disconnected' }}
         </span>
       </div>
@@ -67,12 +73,24 @@ onMounted(() => store.fetchUsb())
   border-radius: 50%;
   flex-shrink: 0;
 }
-.usb-conn-dot--on  { background: #43a047; box-shadow: 0 0 0 2px #c8e6c9; }
-.usb-conn-dot--off { background: #bdbdbd; }
+.usb-conn-dot--on {
+  background: #43a047;
+  box-shadow: 0 0 0 2px #c8e6c9;
+}
+.usb-conn-dot--off {
+  background: #bdbdbd;
+}
 
-.usb-conn-label { font-size: 11px; font-weight: 600; }
-.usb-conn-label--on  { color: #2e7d32; }
-.usb-conn-label--off { color: #9e9e9e; }
+.usb-conn-label {
+  font-size: 11px;
+  font-weight: 600;
+}
+.usb-conn-label--on {
+  color: #2e7d32;
+}
+.usb-conn-label--off {
+  color: #9e9e9e;
+}
 
 .row-select {
   width: 100px;

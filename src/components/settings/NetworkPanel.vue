@@ -24,7 +24,7 @@ async function save() {
   <div class="st-panel">
     <!-- Header -->
     <div class="row no-wrap justify-between items-center q-px-lg q-py-md">
-      <div class="row q-gutter-x-sm row justify-start items-center">
+      <div class="row q-gutter-x-xs row justify-start items-center">
         <q-icon name="lan" size="20px" color="blue-7" />
         <span class="st-panel-title">Network Settings</span>
       </div>
