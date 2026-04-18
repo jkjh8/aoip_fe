@@ -263,10 +263,13 @@ function setParam(key, val) {
   background: #2a2a3a;
   border-radius: 4px;
   overflow: hidden;
+  position: relative;
 }
 .gr-fill {
+  position: absolute;
+  right: 0;
   height: 100%;
-  background: linear-gradient(to right, #ffa726, #ef5350);
+  background: linear-gradient(to left, #ffa726, #ef5350);
   border-radius: 4px;
   transition: width 0.08s linear;
 }

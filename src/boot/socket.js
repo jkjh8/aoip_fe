@@ -1,6 +1,7 @@
 import { defineBoot } from '#q-app/wrappers'
 import { io } from 'socket.io-client'
 import { useAoipStore } from 'src/stores/aoip'
+import { useSettingsStore } from 'src/stores/settings'
 
 const serverUrl = process.env.DEV
   ? 'http://192.168.10.103:3000'
@@ -15,6 +16,7 @@ export default defineBoot(({ app, pinia }) => {
   app.config.globalProperties.$socket = socket
 
   const store = useAoipStore(pinia)
+  const settingsStore = useSettingsStore(pinia)
 
   socket.on('connect', () => {
     store.connected = true
@@ -28,6 +30,10 @@ export default defineBoot(({ app, pinia }) => {
     store.streams = data.streams
     store.channels = data.channels
     if (data.rxStats) store.rxStats = data.rxStats
+    if (data.usb) {
+      if (data.usb.connected !== undefined) settingsStore.usbConnected = data.usb.connected
+      if (data.usb.enabled !== undefined) settingsStore.usbEnabled = data.usb.enabled
+    }
   })
   socket.on('rx:stats', (data) => {
     store.rxStats = data

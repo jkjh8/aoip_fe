@@ -24,7 +24,7 @@ const dialogOpen = computed({
 })
 
 const inputGroups = computed(() => {
-  const chs = aoipState.channels.inputs
+  const chs = aoipState.filteredInputs
   const groups = []
   let i = 0
   while (i < chs.length) {

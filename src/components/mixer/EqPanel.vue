@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { socket } from 'src/boot/socket'
+import { useAoipStore } from 'src/stores/aoip'
 import {
   freqToX,
   gainToY,
@@ -10,6 +11,8 @@ import {
   useEqCurve,
   EQ_CONSTANTS,
 } from 'src/composables/useEqFilter'
+
+const aoipStore = useAoipStore()
 
 const props = defineProps({
   modelValue: Boolean,
@@ -153,25 +156,37 @@ function throttledSendHpf() {
 function sendHpf() {
   if (!props.channel) return
   const ids = [props.channel?.id, props.channelRight?.id].filter(Boolean)
+  const hpfState = { enabled: hpf.value.enabled, freq: hpf.value.freq, slope: hpf.value.slope }
   for (const id of ids) {
-    socket.emit('dsp:hpf', {
-      id,
-      type: props.channelType,
-      enabled: hpf.value.enabled,
-      freq: hpf.value.freq,
-      slope: hpf.value.slope,
-    })
+    socket.emit('dsp:hpf', { id, type: props.channelType, ...hpfState })
+    const allChs = [...aoipStore.channels.inputs, ...aoipStore.channels.outputs]
+    const ch = allChs.find((c) => c.id === id)
+    if (ch?.dsp) ch.dsp.hpf = { ...hpfState }
   }
 }
 
 function toggleHpf() {
   hpf.value.enabled = !hpf.value.enabled
+  if (hpf.value.enabled && bypass.value) {
+    bypass.value = false
+    savedEnabled = null
+  }
   sendHpf()
 }
 
 function onHpfPointerdown(e) {
   e.preventDefault()
   hpfSelected.value = true
+
+  let autoEnabled = false
+  if (!hpf.value.enabled) {
+    hpf.value.enabled = true
+    autoEnabled = true
+    if (bypass.value) {
+      bypass.value = false
+      savedEnabled = null
+    }
+  }
 
   isDragging = true
   clearTimeout(dragCooldownTimer)
@@ -183,7 +198,8 @@ function onHpfPointerdown(e) {
     throttledSendHpf()
   }
   const onUp = () => {
-    if (moved) {
+    if (!moved && autoEnabled) sendHpf()
+    else if (moved) {
       clearTimeout(hpfThrottleTimer)
       sendHpf()
     }
@@ -253,6 +269,10 @@ function onHandlePointerdown(e, i) {
   if (!bands.value[i].enabled) {
     bands.value[i].enabled = true
     autoEnabled = true
+    if (bypass.value) {
+      bypass.value = false
+      savedEnabled = null
+    }
   }
 
   let moved = false
@@ -347,6 +367,11 @@ function disableHandle(i) {
   sendBand(i)
 }
 
+function disableHpf() {
+  hpf.value.enabled = false
+  sendHpf()
+}
+
 function allFlat() {
   bands.value.forEach((b, idx) => {
     b.gain = 0
@@ -356,6 +381,10 @@ function allFlat() {
 
 function toggleHandle(i) {
   bands.value[i].enabled = !bands.value[i].enabled
+  if (bands.value[i].enabled && bypass.value) {
+    bypass.value = false
+    savedEnabled = null
+  }
   sendBand(i)
 }
 
@@ -540,9 +569,9 @@ const hpfFreqModel = computed({
             <!-- HPF handle -->
             <g clip-path="url(#eq-plot-clip)">
               <g
-                v-if="hpf.enabled || hpfSelected"
                 class="band-handle"
                 @pointerdown="onHpfPointerdown"
+                @dblclick.prevent="disableHpf"
               >
                 <line
                   :x1="freqToX(hpf.freq)"
