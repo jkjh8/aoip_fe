@@ -47,15 +47,15 @@ const inputGroups = computed(() => {
 })
 
 function isConnected(inputPort, outputPort) {
-  const entry = aoipState.jack.connections.find((c) => c.port === inputPort)
+  const entry = aoipState.connections.find((c) => c.port === inputPort)
   return entry ? entry.connections.includes(outputPort) : false
 }
 
 function toggleConnection(inputPort, outputPort) {
   if (isConnected(inputPort, outputPort)) {
-    socket.emit('jack:disconnect', { src: inputPort, dst: outputPort })
+    socket.emit('route:remove', { src: inputPort, dst: outputPort })
   } else {
-    socket.emit('jack:connect', { src: inputPort, dst: outputPort })
+    socket.emit('route:add', { src: inputPort, dst: outputPort })
   }
 }
 

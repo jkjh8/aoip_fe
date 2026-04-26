@@ -72,12 +72,12 @@ export default defineConfig((/* ctx */) => {
 
     // Full list of options: https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#devserver
     devServer: {
-      port: 8080,
+      port: 8081,
       // https: true,
       open: 'chrome', // opens browser window automatically
       proxy: {
         '/api': {
-          target: 'http://192.168.10.103:3000',
+          target: 'http://192.168.10.97:3000',
           changeOrigin: true,
         },
       },

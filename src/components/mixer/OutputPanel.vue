@@ -66,7 +66,7 @@ const routeDialogOpen = computed({
 })
 
 function isConnected(inputPort, outputPort) {
-  const entry = aoipState.jack.connections.find((c) => c.port === inputPort)
+  const entry = aoipState.connections.find((c) => c.port === inputPort)
   return entry ? entry.connections.includes(outputPort) : false
 }
 

@@ -4,10 +4,12 @@ import { useSettingsStore } from './settings'
 export const useAoipStore = defineStore('aoip', {
   state: () => ({
     connected: false,
-    jack:      { running: false, ports: [], connections: [] },
-    bridges:   {},
-    streams:   {},
-    channels:  { inputs: [], outputs: [] },
+    engine:      { running: false },
+    aes67:       { running: false, ready: false, url: '' },
+    bridges:     {},
+    streams:     {},
+    connections: [],
+    channels:    { inputs: [], outputs: [] },
     rxStats:   {
       srcIp: null, srcPort: null, codec: null,
       packets: 0, udpBytes: 0, udpPackets: 0,

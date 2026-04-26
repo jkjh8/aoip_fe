@@ -44,8 +44,9 @@ const miniMode = ref(true)
 
 const linksList = [
   { title: 'Matrix',   caption: 'Audio Mixer',         icon: 'hub',     link: '/matrix' },
-  { title: 'Stream',   caption: 'Streaming Settings',  icon: 'stream',  link: '/stream' },
-  { title: 'Devices',  caption: 'Audio Interfaces',    icon: 'devices', link: '/devices' },
+  { title: 'Stream',   caption: 'Streaming Settings',  icon: 'stream',       link: '/stream' },
+  { title: 'AES67',   caption: 'AES67 Sources/Sinks', icon: 'settings_ethernet', link: '/aes67' },
+  { title: 'Devices',  caption: 'Audio Interfaces',   icon: 'devices',      link: '/devices' },
   { title: 'Settings', caption: 'Application Settings',icon: 'settings',link: '/settings' },
 ]
 </script>

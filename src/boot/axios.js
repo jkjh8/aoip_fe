@@ -8,7 +8,7 @@ import axios from 'axios'
 // "export default () => {}" function below (which runs individually
 // for each client)
 const baseURL = process.env.DEV
-  ? 'http://192.168.10.103:3000'
+  ? 'http://192.168.10.97:3000'
   : `${window.location.protocol}//${window.location.hostname}:3000`
 
 const api = axios.create({ baseURL })

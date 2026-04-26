@@ -20,6 +20,11 @@ const routes = [
     children: [{ path: '', component: () => import('pages/StreamPage.vue') }],
   },
   {
+    path: '/aes67',
+    component: () => import('layouts/MainLayout.vue'),
+    children: [{ path: '', component: () => import('pages/Aes67Page.vue') }],
+  },
+  {
     path: '/settings',
     component: () => import('layouts/MainLayout.vue'),
     children: [{ path: '', component: () => import('pages/SettingsPage.vue') }],
