@@ -130,8 +130,8 @@ function fmtBytes(n) {
       <div class="seg-group">
         <button class="seg-btn" :class="{ 'seg-btn--on': curProtocol === 'rtp' }"
           @click="setProtocol('rtp')">RTP</button>
-        <button class="seg-btn" :class="{ 'seg-btn--on': curProtocol === 'raw' }"
-          @click="setProtocol('raw')">UDP Raw</button>
+        <button class="seg-btn" :class="{ 'seg-btn--on': curProtocol === 'udp' }"
+          @click="setProtocol('udp')">UDP Raw</button>
       </div>
       <span v-if="s.running" class="restart-note">재시작 후 적용</span>
     </div>
