@@ -227,7 +227,7 @@ function sdpAddress(sdp) {
 }
 
 function sdpCodec(sdp) {
-  const m = (sdp ?? '').match(/a=rtpmap:\d+\s+(\S+)\/(\d+)(?:\/(\d+))?/)
+  const m = (sdp ?? '').match(/a=rtpmap:\d+\s+([^/\s]+)\/(\d+)(?:\/(\d+))?/)
   if (!m) return ''
   return `${m[1]} ${(Number(m[2]) / 1000).toFixed(0)}kHz ${m[3] ?? 1}ch`
 }

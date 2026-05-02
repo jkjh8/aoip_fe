@@ -18,18 +18,15 @@ onMounted(async () => {
 
 // SDP에서 소스 이름 파싱
 const sourceName = computed(() => {
-  if (props.sink.use_sdp) {
-    // URL에서 마지막 부분 추출
-    return props.sink.source ?? '—'
-  }
-  const m = (props.sink.sdp ?? '').match(/^s=(.+)$/m)
-  return m ? m[1].trim() : '—'
+  const sdpName = (props.sink.sdp ?? '').match(/^s=(.+)$/m)?.[1]?.trim()
+  if (sdpName) return sdpName
+  return props.sink.source ?? '—'
 })
 
 // SDP에서 codec/rate/ch 추출
 const sdpFormat = computed(() => {
   const sdp = props.sink.sdp ?? ''
-  const m = sdp.match(/a=rtpmap:\d+\s+(\S+)\/(\d+)(?:\/(\d+))?/)
+  const m = sdp.match(/a=rtpmap:\d+\s+([^/\s]+)\/(\d+)(?:\/(\d+))?/)
   if (!m) return null
   return { codec: m[1], rate: Number(m[2]), channels: Number(m[3] ?? 1) }
 })
