@@ -1,45 +1,10 @@
 <script setup>
-import { ref, computed } from 'vue'
-
-const props = defineProps({
+defineProps({
   s: { type: Object, required: true },
   detail: { type: Object, default: () => ({}) },
 })
 
 defineEmits(['refresh'])
-
-// ── 편집 폼 (정지 상태에서만 사용) ───────────────────
-const portInput = ref('')
-const bufInput = ref('')
-const addressInput = ref('')
-const channelsInput = ref(null) // null = 현재값 유지
-const protocolInput = ref(null) // null = 현재값 유지
-
-const currentPort = computed(() => props.detail?.port ?? '—')
-const currentBuf = computed(() => props.detail?.bufferMs ?? 100)
-const currentAddress = computed(() => props.detail?.address ?? '0.0.0.0')
-const currentChannels = computed(() => props.detail?.channels ?? 2)
-const currentProtocol = computed(() => props.detail?.protocol ?? 'rtp')
-
-/** StreamPanel의 Start 버튼이 REST POST body로 사용할 config */
-function getPendingConfig() {
-  const cfg = {}
-  if (portInput.value) cfg.port = Number(portInput.value)
-  if (bufInput.value) cfg.bufferMs = Number(bufInput.value)
-  if (addressInput.value) cfg.address = addressInput.value.trim()
-  if (channelsInput.value) cfg.channels = channelsInput.value
-  if (protocolInput.value) cfg.protocol = protocolInput.value
-
-  if (!cfg.port && props.detail?.port) cfg.port = props.detail.port
-  if (!cfg.bufferMs && props.detail?.bufferMs) cfg.bufferMs = props.detail.bufferMs
-  if (!cfg.address) cfg.address = currentAddress.value
-  if (!cfg.channels) cfg.channels = currentChannels.value
-  if (!cfg.protocol) cfg.protocol = currentProtocol.value
-
-  return cfg
-}
-
-defineExpose({ getPendingConfig })
 </script>
 
 <template>
@@ -89,106 +54,6 @@ defineExpose({ getPendingConfig })
     </div>
   </div>
 
-  <!-- Config 편집 — 정지 상태에서만 표시, Start 버튼 클릭 시 일괄 전송 -->
-  <template v-if="!s.running">
-    <q-separator />
-    <div class="cfg-hint">Start 시 아래 설정이 적용됩니다</div>
-
-    <!-- Protocol -->
-    <div class="st-section-label">
-      Protocol
-      <span class="val-current">Current: {{ currentProtocol.toUpperCase() }}</span>
-    </div>
-    <div class="st-strip st-strip--form">
-      <div class="seg-group">
-        <button
-          class="seg-btn"
-          :class="{ 'seg-btn--on': (protocolInput ?? currentProtocol) === 'rtp' }"
-          @click="protocolInput = 'rtp'"
-        >
-          RTP
-        </button>
-        <button
-          class="seg-btn"
-          :class="{ 'seg-btn--on': (protocolInput ?? currentProtocol) === 'raw' }"
-          @click="protocolInput = 'raw'"
-        >
-          UDP Raw
-        </button>
-      </div>
-    </div>
-
-    <!-- Address -->
-    <div class="st-section-label">
-      Address
-      <span class="val-current">Current: {{ currentAddress }}</span>
-    </div>
-    <div class="st-strip">
-      <q-input
-        v-model="addressInput"
-        dense
-        outlined
-        placeholder="0.0.0.0 또는 멀티캐스트 239.x.x.x"
-        class="cfg-input"
-      />
-    </div>
-
-    <!-- Port -->
-    <div class="st-section-label">
-      UDP Receive Port
-      <span class="val-current">Current: {{ currentPort }}</span>
-    </div>
-    <div class="st-strip">
-      <q-input
-        v-model="portInput"
-        dense
-        outlined
-        placeholder="비우면 현재값 유지"
-        type="number"
-        class="cfg-input"
-      />
-    </div>
-
-    <!-- Buffer -->
-    <div class="st-section-label">
-      Buffer
-      <span class="val-current">Current: {{ currentBuf }} ms</span>
-    </div>
-    <div class="st-strip">
-      <q-input
-        v-model="bufInput"
-        dense
-        outlined
-        placeholder="ms, 비우면 현재값 유지"
-        type="number"
-        class="cfg-input"
-      />
-    </div>
-
-    <!-- Channels -->
-    <div class="st-section-label">
-      Channels
-      <span class="val-current">Current: {{ currentChannels === 1 ? 'Mono' : 'Stereo' }}</span>
-    </div>
-    <div class="st-strip st-strip--form">
-      <div class="seg-group">
-        <button
-          class="seg-btn"
-          :class="{ 'seg-btn--on': (channelsInput ?? currentChannels) === 1 }"
-          @click="channelsInput = 1"
-        >
-          Mono
-        </button>
-        <button
-          class="seg-btn"
-          :class="{ 'seg-btn--on': (channelsInput ?? currentChannels) === 2 }"
-          @click="channelsInput = 2"
-        >
-          Stereo
-        </button>
-      </div>
-    </div>
-  </template>
 </template>
 
 <style scoped>

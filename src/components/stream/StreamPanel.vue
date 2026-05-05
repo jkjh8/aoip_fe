@@ -1,10 +1,13 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { api } from 'src/boot/axios'
+import { useQuasar } from 'quasar'
 import { useAoipStore } from 'src/stores/aoip'
 import RtpInPanel from './RtpInPanel.vue'
 import RtpOutPanel from './RtpOutPanel.vue'
 import LevelMeter from 'src/components/mixer/LevelMeter.vue'
+import RtpInStartDialog from './RtpInStartDialog.vue'
+import RtpOutStartDialog from './RtpOutStartDialog.vue'
 
 const props = defineProps({
   s: { type: Object, required: true },
@@ -12,6 +15,7 @@ const props = defineProps({
 })
 
 const aoipState = useAoipStore()
+const $q = useQuasar()
 
 const meterChannels = computed(() => {
   const all = props.s.type === 'rtp_in' ? aoipState.channels.inputs : aoipState.channels.outputs
@@ -20,24 +24,59 @@ const meterChannels = computed(() => {
 })
 
 const emit = defineEmits(['refresh'])
-
 const busy = ref(false)
-const rtpInRef = ref(null)
 
-async function toggleStream() {
-  busy.value = true
-  try {
-    if (props.s.running) {
-      await api.post(`/streams/rtp/${props.s.client}/stop`)
-    } else {
-      const cfg = rtpInRef.value?.getPendingConfig?.() ?? {}
-      await api.post(`/streams/rtp/${props.s.client}/start`, cfg)
-    }
-    emit('refresh', props.s.client)
-  } catch (e) {
-    console.error('[stream] toggle failed', e)
-  } finally {
-    busy.value = false
+function toggleStream() {
+  if (props.s.running) {
+    $q.dialog({
+      title: '스트림 정지',
+      message: `"${props.detail?.name ?? props.s.client}" 스트림을 정지하시겠습니까?`,
+      cancel: { flat: true, label: '취소' },
+      ok: { unelevated: true, label: '정지', color: 'negative' },
+      persistent: true,
+    }).onOk(async () => {
+      busy.value = true
+      try {
+        await api.post(`/streams/rtp/${props.s.client}/stop`)
+        emit('refresh', props.s.client)
+      } catch (e) {
+        console.error('[stream] stop failed', e)
+      } finally {
+        busy.value = false
+      }
+    })
+  } else if (props.s.type === 'rtp_in') {
+    $q.dialog({
+      component: RtpInStartDialog,
+      componentProps: { detail: props.detail, name: props.detail?.name ?? props.s.client },
+    }).onOk(async (cfg) => {
+      busy.value = true
+      try {
+        await api.post(`/streams/rtp/${props.s.client}/start`, cfg)
+        emit('refresh', props.s.client)
+      } catch (e) {
+        console.error('[stream] start failed', e)
+      } finally {
+        busy.value = false
+      }
+    })
+  } else {
+    $q.dialog({
+      component: RtpOutStartDialog,
+      componentProps: { detail: props.detail, name: props.detail?.name ?? props.s.client },
+    }).onOk(async ({ protocol, codec, bitrate }) => {
+      busy.value = true
+      try {
+        await api.put(`/streams/rtp/${props.s.client}/codec`, { codec, bitrate })
+        await api.put(`/streams/rtp/${props.s.client}/config`, { protocol })
+        await api.post(`/streams/rtp/${props.s.client}/start`)
+        emit('refresh', props.s.client)
+      } catch (e) {
+        console.error('[stream] start failed', e)
+      } finally {
+        busy.value = false
+      }
+    })
   }
 }
 </script>
@@ -86,7 +125,6 @@ async function toggleStream() {
     <q-card-section class="q-pa-none">
       <RtpInPanel
         v-if="s.type === 'rtp_in'"
-        ref="rtpInRef"
         :s="s"
         :detail="detail"
         @refresh="emit('refresh', s.client)"
