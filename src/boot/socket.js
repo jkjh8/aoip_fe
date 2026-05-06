@@ -4,7 +4,7 @@ import { useAoipStore } from 'src/stores/aoip'
 import { useSettingsStore } from 'src/stores/settings'
 
 const serverUrl = process.env.DEV
-  ? 'http://192.168.10.97:3000'
+  ? 'http://192.168.10.103:3000'
   : `${window.location.protocol}//${window.location.hostname}:3000`
 
 export const socket = io(serverUrl, {
@@ -25,13 +25,13 @@ export default defineBoot(({ app, pinia }) => {
     store.connected = false
   })
   socket.on('status', (data) => {
-    if (data.engine)      store.engine      = data.engine
-    if (data.aes67)       store.aes67       = data.aes67
-    store.bridges   = data.bridges
-    store.streams   = data.streams
-    store.channels  = data.channels
+    if (data.engine) store.engine = data.engine
+    if (data.aes67) store.aes67 = data.aes67
+    store.bridges = data.bridges
+    store.streams = data.streams
+    store.channels = data.channels
     if (data.connections) store.connections = data.connections
-    if (data.rxStats)     store.rxStats     = data.rxStats
+    if (data.rxStats) store.rxStats = data.rxStats
     if (data.usb) {
       if (data.usb.connected !== undefined) settingsStore.usbConnected = data.usb.connected
       if (data.usb.enabled !== undefined) settingsStore.usbEnabled = data.usb.enabled

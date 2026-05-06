@@ -77,7 +77,7 @@ export default defineConfig((/* ctx */) => {
       open: 'chrome', // opens browser window automatically
       proxy: {
         '/api': {
-          target: 'http://192.168.10.97:3000',
+          target: 'http://192.168.10.103:3000',
           changeOrigin: true,
         },
       },
