@@ -1,36 +1,16 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { api } from 'src/boot/axios'
+import { ref, computed } from 'vue'
+import { socket } from 'src/boot/socket'
 import { useAoipStore } from 'src/stores/aoip'
 import Aes67SourcePanel from 'src/components/aes67/Aes67SourcePanel.vue'
 import Aes67SinkPanel from 'src/components/aes67/Aes67SinkPanel.vue'
 
 const aoipState = useAoipStore()
 
-// ── Data ─────────────────────────────────────────────────
-const sources = ref([])
-const sinks = ref([])
-const ptpStatus = ref(null)
-
-async function fetchAll() {
-  try {
-    const ts = Date.now()
-    const [sRes, kRes, ptpRes] = await Promise.all([
-      api.get('/aes67/sources', { params: { _: ts } }),
-      api.get('/aes67/sinks', { params: { _: ts } }),
-      api.get('/aes67/ptp/status', { params: { _: ts } }),
-    ])
-    sources.value = sRes.data?.sources ?? []
-    sinks.value = kRes.data?.sinks ?? []
-    ptpStatus.value = ptpRes.data
-  } catch {
-    /* daemon may be offline */
-  }
-}
-
-onMounted(fetchAll)
-const timer = setInterval(fetchAll, 10000)
-onUnmounted(() => clearInterval(timer))
+// ── Data (소켓 이벤트로 자동 갱신됨) ────────────────────
+const sources = computed(() => aoipState.aes67Sources)
+const sinks   = computed(() => aoipState.aes67Sinks)
+const ptpStatus = computed(() => aoipState.aes67PtpStatus)
 
 const aes67 = computed(() => aoipState.aes67 ?? { running: false, ready: false })
 
@@ -85,7 +65,7 @@ function openAddSource() {
   showAddSource.value = true
 }
 
-async function confirmAddSource() {
+function confirmAddSource() {
   const f = srcForm.value
   if (!f.name.trim()) {
     srcError.value = '이름을 입력하세요'
@@ -99,26 +79,27 @@ async function confirmAddSource() {
   srcBusy.value = true
   srcError.value = ''
   const map = Array.from({ length: f.channels }, (_, i) => f.chStart + i)
-  try {
-    await api.put(`/aes67/sources/${nextSourceId.value}`, {
-      enabled: true,
-      name: f.name.trim(),
-      io: 'Audio Device',
-      address: f.address.trim(),
-      codec: f.codec,
-      max_samples_per_packet: f.spp,
-      ttl: f.ttl,
-      payload_type: 98,
-      dscp: 34,
-      refclk_ptp_traceable: false,
-      map,
-    })
-    showAddSource.value = false
-    await fetchAll()
-  } catch (e) {
-    srcError.value = e.response?.data?.error ?? 'Failed'
-  }
-  srcBusy.value = false
+  socket.emit('aes67:source:add', {
+    id: nextSourceId.value,
+    enabled: true,
+    name: f.name.trim(),
+    io: 'Audio Device',
+    address: f.address.trim(),
+    codec: f.codec,
+    max_samples_per_packet: f.spp,
+    ttl: f.ttl,
+    payload_type: 98,
+    dscp: 34,
+    refclk_ptp_traceable: false,
+    map,
+  }, (res) => {
+    if (res?.ok) {
+      showAddSource.value = false
+    } else {
+      srcError.value = res?.error ?? 'Failed'
+    }
+    srcBusy.value = false
+  })
 }
 
 // ─────────────────────────────────────────────────────────
@@ -142,7 +123,7 @@ const sinkForm = ref({
   chStart: 0,
 })
 
-async function openAddSink() {
+function openAddSink() {
   sinkForm.value = {
     name: '',
     url: '',
@@ -156,18 +137,16 @@ async function openAddSink() {
   selectedRemote.value = null
   sinkTab.value = 'browse'
   showAddSink.value = true
-  await doBrowse()
+  doBrowse()
 }
 
-async function doBrowse() {
+function doBrowse() {
   browseBusy.value = true
-  try {
-    const res = await api.get('/aes67/browse')
-    browseList.value = res.data?.remote_sources ?? []
-  } catch {
-    browseList.value = []
-  }
-  browseBusy.value = false
+  socket.emit('aes67:browse', { type: 'all' }, (res) => {
+    const raw = res?.sources
+    browseList.value = Array.isArray(raw) ? raw : (raw?.remote_sources ?? [])
+    browseBusy.value = false
+  })
 }
 
 function selectRemote(src) {
@@ -179,7 +158,7 @@ function selectRemote(src) {
   if (m) sinkForm.value.channels = Number(m[1])
 }
 
-async function confirmAddSink() {
+function confirmAddSink() {
   const f = sinkForm.value
   if (!f.name.trim()) {
     sinkError.value = '이름을 입력하세요'
@@ -234,14 +213,14 @@ async function confirmAddSink() {
     }
   }
 
-  try {
-    await api.put(`/aes67/sinks/${nextSinkId.value}`, body)
-    showAddSink.value = false
-    await fetchAll()
-  } catch (e) {
-    sinkError.value = e.response?.data?.error ?? 'Failed'
-  }
-  sinkBusy.value = false
+  socket.emit('aes67:sink:add', { id: nextSinkId.value, ...body }, (res) => {
+    if (res?.ok) {
+      showAddSink.value = false
+    } else {
+      sinkError.value = res?.error ?? 'Failed'
+    }
+    sinkBusy.value = false
+  })
 }
 
 // SDP에서 멀티캐스트 주소 파싱
@@ -310,7 +289,7 @@ function sdpCodec(sdp) {
         </q-btn>
       </div>
 
-      <Aes67SourcePanel v-for="src in sources" :key="src.id" :source="src" @refresh="fetchAll" />
+      <Aes67SourcePanel v-for="src in sources" :key="src.id" :source="src" />
       <div v-if="aes67.ready && !sources.length" class="empty-hint">
         <q-icon name="upload" size="32px" color="blue-grey-3" />
         <span>소스 없음</span>
@@ -340,7 +319,7 @@ function sdpCodec(sdp) {
         </q-btn>
       </div>
 
-      <Aes67SinkPanel v-for="sk in sinks" :key="sk.id" :sink="sk" @refresh="fetchAll" />
+      <Aes67SinkPanel v-for="sk in sinks" :key="sk.id" :sink="sk" />
       <div v-if="aes67.ready && !sinks.length" class="empty-hint">
         <q-icon name="download" size="32px" color="blue-grey-3" />
         <span>싱크 없음</span>

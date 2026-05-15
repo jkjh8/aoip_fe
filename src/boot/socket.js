@@ -37,6 +37,15 @@ export default defineBoot(({ app, pinia }) => {
       if (data.usb.enabled !== undefined) settingsStore.usbEnabled = data.usb.enabled
     }
   })
+  socket.on('aes67:sources', (data) => {
+    store.aes67Sources = Array.isArray(data) ? data : (data?.sources ?? [])
+  })
+  socket.on('aes67:sinks', (data) => {
+    store.aes67Sinks = Array.isArray(data) ? data : (data?.sinks ?? [])
+  })
+  socket.on('aes67:ptp:status', (data) => {
+    store.aes67PtpStatus = data
+  })
   socket.on('rx:stats', (data) => {
     store.rxStats = data
   })

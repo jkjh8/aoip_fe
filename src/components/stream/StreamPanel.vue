@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { api } from 'src/boot/axios'
+import { socket } from 'src/boot/socket'
 import { useQuasar } from 'quasar'
 import { useAoipStore } from 'src/stores/aoip'
 import RtpInPanel from './RtpInPanel.vue'
@@ -38,48 +38,44 @@ function toggleStream() {
       cancel: { flat: true, label: '취소' },
       ok: { unelevated: true, label: '정지', color: 'negative' },
       persistent: true,
-    }).onOk(async () => {
+    }).onOk(() => {
       busy.value = true
-      try {
-        await api.post(`/streams/rtp/${props.s.client}/stop`)
-        emit('refresh', props.s.client)
-      } catch (e) {
-        console.error('[stream] stop failed', e)
-      } finally {
+      socket.emit('rtp:stream:stop', { client: props.s.client }, (res) => {
         busy.value = false
-      }
+        if (!res?.ok) console.error('[stream] stop failed', res?.error)
+        else emit('refresh', props.s.client)
+      })
     })
   } else if (props.s.type === 'rtp_in') {
     $q.dialog({
       component: RtpInStartDialog,
       componentProps: { detail: props.detail, name: props.detail?.name ?? props.s.client },
-    }).onOk(async (cfg) => {
+    }).onOk((cfg) => {
       busy.value = true
-      try {
-        await api.post(`/streams/rtp/${props.s.client}/start`, cfg)
-        emit('refresh', props.s.client)
-      } catch (e) {
-        console.error('[stream] start failed', e)
-      } finally {
+      socket.emit('rtp:stream:start', { client: props.s.client, ...cfg }, (res) => {
         busy.value = false
-      }
+        if (!res?.ok) console.error('[stream] start failed', res?.error)
+        else emit('refresh', props.s.client)
+      })
     })
   } else {
     $q.dialog({
       component: RtpOutStartDialog,
       componentProps: { detail: props.detail, name: props.detail?.name ?? props.s.client },
-    }).onOk(async ({ protocol, codec, bitrate }) => {
+    }).onOk(({ protocol, codec, bitrate }) => {
       busy.value = true
-      try {
-        await api.put(`/streams/rtp/${props.s.client}/codec`, { codec, bitrate })
-        await api.put(`/streams/rtp/${props.s.client}/config`, { protocol })
-        await api.post(`/streams/rtp/${props.s.client}/start`)
-        emit('refresh', props.s.client)
-      } catch (e) {
-        console.error('[stream] start failed', e)
-      } finally {
-        busy.value = false
-      }
+      socket.emit('rtp:out:codec', { client: props.s.client, codec, bitrate }, (res) => {
+        if (!res?.ok) {
+          busy.value = false
+          console.error('[stream] codec set failed', res?.error)
+          return
+        }
+        socket.emit('rtp:stream:start', { client: props.s.client, protocol }, (res2) => {
+          busy.value = false
+          if (!res2?.ok) console.error('[stream] start failed', res2?.error)
+          else emit('refresh', props.s.client)
+        })
+      })
     })
   }
 }

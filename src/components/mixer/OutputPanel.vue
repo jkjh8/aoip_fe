@@ -2,10 +2,9 @@
 import { computed, ref } from 'vue'
 import { useAoipStore } from 'src/stores/aoip'
 import { useChannelPanel } from 'src/composables/useChannelPanel'
-import EqPanel from './EqPanel.vue'
 import LevelMeter from './LevelMeter.vue'
-import LimiterPanel from './LimiterPanel.vue'
 import RoutingDialog from './RoutingDialog.vue'
+import MatrixDialog from './MatrixDialog.vue'
 
 const aoipState = useAoipStore()
 
@@ -31,31 +30,10 @@ const {
   onEditKeydown,
   toDb,
   onDbClick,
-  hasDsp,
-  isEqActive,
-  openEq,
-  eqOpen,
-  eqChannel,
-  eqChannelRight,
 } = useChannelPanel('output')
 
-// Limiter (output only)
-const limOpen = ref(false)
-const limChannel = ref(null)
-const limChannelRight = ref(null)
-
-function openLimiter(group) {
-  limChannel.value = group.stereo ? group.left : group.ch
-  limChannelRight.value = group.stereo ? group.right : null
-  limOpen.value = true
-}
-
-function isLimiterActive(group) {
-  const ch = group.stereo ? group.left : group.ch
-  return ch?.dsp?.limiter?.enabled === true
-}
-
 // Routing (output only)
+const matrixOpen  = ref(false)
 const routeTarget = ref(null)
 
 const routeDialogOpen = computed({
@@ -82,8 +60,19 @@ function allDots(outGroup) {
 
 <template>
   <q-card class="ch-panel">
-    <q-card-section>
-      <div class="text-h6 text-weight-light">Ouputs</div>
+    <q-card-section class="output-header">
+      <div class="text-h6 text-weight-light">Outputs</div>
+      <q-btn
+        flat dense round
+        icon="grid_on"
+        color="blue-grey-5"
+        size="sm"
+        @click="matrixOpen = true"
+      >
+        <q-tooltip anchor="top middle" self="bottom middle" :offset="[0,4]">
+          Crosspoint Matrix
+        </q-tooltip>
+      </q-btn>
     </q-card-section>
     <q-separator />
     <q-card-section>
@@ -175,44 +164,6 @@ function allDots(outGroup) {
             </q-tooltip>
           </q-btn>
 
-          <!-- EQ -->
-          <q-btn
-            flat
-            dense
-            size="md"
-            icon="equalizer"
-            :color="isEqActive(group) ? 'blue-7' : 'blue-grey-5'"
-            :style="!hasDsp(group) ? 'visibility:hidden;pointer-events:none' : ''"
-            @click="openEq(group)"
-          >
-            <q-tooltip
-              class="bg-grey-4 text-grey-9"
-              anchor="top middle"
-              self="bottom middle"
-              :offset="[0, 4]"
-              >EQ</q-tooltip
-            >
-          </q-btn>
-
-          <!-- Limiter -->
-          <q-btn
-            flat
-            dense
-            size="md"
-            icon="compress"
-            :style="!hasDsp(group) ? 'visibility:hidden;pointer-events:none' : ''"
-            :color="isLimiterActive(group) ? 'red-7' : 'blue-grey-5'"
-            @click="openLimiter(group)"
-          >
-            <q-tooltip
-              class="bg-grey-4 text-grey-9"
-              anchor="top middle"
-              self="bottom middle"
-              :offset="[0, 4]"
-              >Limiter</q-tooltip
-            >
-          </q-btn>
-
           <!-- 레벨 미터 (vertical) -->
           <LevelMeter
             :channels="
@@ -227,21 +178,21 @@ function allDots(outGroup) {
         </div>
       </template>
 
-      <EqPanel
-        v-model="eqOpen"
-        :channel="eqChannel"
-        :channel-right="eqChannelRight"
-        channel-type="output"
-      />
-
-      <LimiterPanel v-model="limOpen" :channel="limChannel" :channel-right="limChannelRight" />
-
       <RoutingDialog v-model="routeDialogOpen" :route-target="routeTarget" />
+      <MatrixDialog v-model="matrixOpen" />
     </q-card-section>
   </q-card>
 </template>
 
 <style scoped>
+.output-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
 /* 라우팅 버튼 — 모노/스테레오 동일 고정 사이즈 */
 .route-btn {
   background: transparent;

@@ -1,19 +1,18 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { api } from 'src/boot/axios'
+import { socket } from 'src/boot/socket'
 
 const props = defineProps({
   sink: { type: Object, required: true },
 })
-const emit = defineEmits(['refresh'])
+
 
 const status = ref(null)
 
-onMounted(async () => {
-  try {
-    const res = await api.get(`/aes67/sinks/${props.sink.id}/status`)
-    status.value = res.data
-  } catch { /* ignore */ }
+onMounted(() => {
+  socket.emit('aes67:sink:status', { id: props.sink.id }, (res) => {
+    if (res?.ok) status.value = res.status
+  })
 })
 
 // SDP에서 소스 이름 파싱
@@ -49,10 +48,9 @@ const isLocked = computed(() => {
   return status.value?.is_sink_connected ?? status.value?.connected ?? null
 })
 
-async function remove() {
+function remove() {
   if (!confirm(`"${props.sink.name}" 싱크를 삭제하시겠습니까?`)) return
-  await api.delete(`/aes67/sinks/${props.sink.id}`)
-  emit('refresh')
+  socket.emit('aes67:sink:remove', { id: props.sink.id })
 }
 </script>
 

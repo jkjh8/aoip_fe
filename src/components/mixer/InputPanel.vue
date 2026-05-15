@@ -1,6 +1,5 @@
 <script setup>
 import { useChannelPanel } from 'src/composables/useChannelPanel'
-import EqPanel from './EqPanel.vue'
 import LevelMeter from './LevelMeter.vue'
 
 const {
@@ -24,12 +23,6 @@ const {
   onEditKeydown,
   toDb,
   onDbClick,
-  hasDsp,
-  isEqActive,
-  openEq,
-  eqOpen,
-  eqChannel,
-  eqChannelRight,
 } = useChannelPanel('input')
 </script>
 
@@ -113,26 +106,6 @@ const {
             </q-tooltip>
           </q-btn>
 
-          <!-- EQ -->
-          <q-btn
-            flat
-            dense
-            size="md"
-            icon="equalizer"
-            :color="isEqActive(group) ? 'blue-7' : 'blue-grey-5'"
-            :style="!hasDsp(group) ? 'visibility:hidden;pointer-events:none' : ''"
-            @click="openEq(group)"
-          >
-            <q-tooltip
-              class="bg-grey-4 text-grey-9"
-              anchor="top middle"
-              self="bottom middle"
-              :offset="[0, 4]"
-            >
-              EQ
-            </q-tooltip>
-          </q-btn>
-
           <!-- 레벨 미터 (vertical) -->
           <LevelMeter
             :channels="
@@ -149,12 +122,6 @@ const {
     </q-card-section>
   </q-card>
 
-  <EqPanel
-    v-model="eqOpen"
-    :channel="eqChannel"
-    :channel-right="eqChannelRight"
-    channel-type="input"
-  />
 </template>
 
 <style scoped>

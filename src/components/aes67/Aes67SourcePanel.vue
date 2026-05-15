@@ -1,11 +1,11 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { api } from 'src/boot/axios'
+import { socket } from 'src/boot/socket'
 
 const props = defineProps({
   source: { type: Object, required: true },
 })
-const emit = defineEmits(['refresh'])
+
 
 const busy    = ref(false)
 const showSdp = ref(false)
@@ -26,31 +26,30 @@ function sppMs(n) {
   return ms < 1 ? `${ms * 1000 | 0}μs` : `${ms}ms`
 }
 
-async function patch(fields) {
+function patch(fields) {
   if (busy.value) return
   busy.value = true
   const { id, ...rest } = props.source
-  try {
-    await api.put(`/aes67/sources/${id}`, { ...rest, ...fields })
-    emit('refresh')
-  } finally { busy.value = false }
+  socket.emit('aes67:source:add', { id, ...rest, ...fields }, (res) => {
+    busy.value = false
+    if (!res?.ok) console.error('[aes67] source patch failed', res?.error)
+  })
 }
 
-async function remove() {
+function remove() {
   if (!confirm(`"${props.source.name}" 소스를 삭제하시겠습니까?`)) return
-  await api.delete(`/aes67/sources/${props.source.id}`)
-  emit('refresh')
+  socket.emit('aes67:source:remove', { id: props.source.id })
 }
 
-async function viewSdp() {
-  try {
-    const res = await api.get(`/aes67/sources/${props.source.id}/sdp`)
-    sdpText.value = typeof res.data === 'string' ? res.data : JSON.stringify(res.data, null, 2)
+function viewSdp() {
+  socket.emit('aes67:source:sdp', { id: props.source.id }, (res) => {
+    if (res?.ok) {
+      sdpText.value = typeof res.sdp === 'string' ? res.sdp : JSON.stringify(res.sdp, null, 2)
+    } else {
+      sdpText.value = `Error: ${res?.error ?? 'unknown'}`
+    }
     showSdp.value = true
-  } catch (e) {
-    sdpText.value = `Error: ${e.message}`
-    showSdp.value = true
-  }
+  })
 }
 </script>
 

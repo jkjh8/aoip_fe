@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { api } from 'src/boot/axios'
+import { socket } from 'src/boot/socket'
 import { useQuasar } from 'quasar'
 import AddTargetDialog from './AddTargetDialog.vue'
 
@@ -38,19 +38,17 @@ const formatLabel = computed(() => {
 // ── Add Target dialog ────────────────────────────────────
 function openAddTarget() {
   $q.dialog({ component: AddTargetDialog })
-    .onOk(async ({ host, port }) => {
-      try {
-        await api.post(`/streams/rtp/${props.s.client}/targets`, { host, port })
-        emit('refresh', props.s.client)
-      } catch { /* ignore */ }
+    .onOk(({ host, port }) => {
+      socket.emit('rtp:out:target:add', { client: props.s.client, host, port }, (res) => {
+        if (res?.ok) emit('refresh', props.s.client)
+      })
     })
 }
 
-async function removeTarget(host, port) {
-  try {
-    const res = await api.delete(`/streams/rtp/${props.s.client}/targets`, { data: { host, port } })
-    if (res.data?.ok) emit('refresh', props.s.client)
-  } catch { /* ignore */ }
+function removeTarget(host, port) {
+  socket.emit('rtp:out:target:remove', { client: props.s.client, host, port }, (res) => {
+    if (res?.ok) emit('refresh', props.s.client)
+  })
 }
 </script>
 

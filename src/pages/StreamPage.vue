@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
-import { api } from 'src/boot/axios'
+import { socket } from 'src/boot/socket'
 import { useAoipStore } from 'src/stores/aoip'
 import StreamPanel from 'src/components/stream/StreamPanel.vue'
 
@@ -9,15 +9,11 @@ const aoipState = useAoipStore()
 // ── Detail cache ──────────────────────────────────────────
 const details = ref({}) // client → full detail object
 
-async function fetchDetail(client) {
-  try {
-    const res = await api.get(`/streams/rtp/${client}`)
-    // 서버가 { ok, stream } 또는 stream 객체 직접 반환 모두 대응
-    const data = res.data?.stream ?? res.data
-    if (data) details.value[client] = data
-  } catch (e) {
-    console.error('[stream] fetchDetail failed', e)
-  }
+function fetchDetail(client) {
+  socket.emit('rtp:stream:get', { client }, (res) => {
+    if (res?.ok && res.stream) details.value[client] = res.stream
+    else if (res && !res.ok) console.error('[stream] fetchDetail failed', res.error)
+  })
 }
 
 onMounted(() => {
