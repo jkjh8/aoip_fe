@@ -62,18 +62,19 @@ function toggleStream() {
     $q.dialog({
       component: RtpOutStartDialog,
       componentProps: { detail: props.detail, name: props.detail?.name ?? props.s.client },
-    }).onOk(({ protocol, codec, bitrate }) => {
+    }).onOk(({ protocol, codec, bitrate, targets }) => {
       busy.value = true
-      socket.emit('rtp:out:codec', { client: props.s.client, codec, bitrate }, (res) => {
+      const client = props.s.client
+      socket.emit('rtp:out:codec', { client, codec, bitrate }, (res) => {
         if (!res?.ok) {
           busy.value = false
           console.error('[stream] codec set failed', res?.error)
           return
         }
-        socket.emit('rtp:stream:start', { client: props.s.client, protocol }, (res2) => {
+        socket.emit('rtp:stream:start', { client, protocol, targets }, (res2) => {
           busy.value = false
           if (!res2?.ok) console.error('[stream] start failed', res2?.error)
-          else emit('refresh', props.s.client)
+          else emit('refresh', client)
         })
       })
     })

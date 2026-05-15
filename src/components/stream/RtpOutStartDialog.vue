@@ -30,8 +30,31 @@ function onCodecChange(c) {
   }
 }
 
+// Targets
+const MAX_TARGETS = 8
+const targets = ref(
+  props.detail?.targets?.length
+    ? props.detail.targets.map(t => ({ host: t.host, port: String(t.port) }))
+    : [{ host: '', port: '' }]
+)
+
+function addTarget() {
+  if (targets.value.length >= MAX_TARGETS) return
+  targets.value.push({ host: '', port: '' })
+}
+
+function removeTarget(i) {
+  targets.value.splice(i, 1)
+}
+
 function onOk() {
-  const cfg = { protocol: protocol.value, codec: codec.value }
+  const cfg = {
+    protocol: protocol.value,
+    codec:    codec.value,
+    targets:  targets.value
+      .filter(t => t.host.trim() && t.port)
+      .map(t => ({ host: t.host.trim(), port: Number(t.port) })),
+  }
   if (codec.value !== 'raw') cfg.bitrate = bitrate.value
   onDialogOK(cfg)
 }
@@ -83,6 +106,40 @@ function onOk() {
             </div>
           </div>
         </transition>
+
+        <!-- Targets -->
+        <div>
+          <div class="dest-header">
+            <div class="field-label">Destinations</div>
+            <button
+              class="add-btn"
+              :disabled="targets.length >= MAX_TARGETS"
+              @click="addTarget"
+            >
+              <q-icon name="add" size="16px" />
+            </button>
+          </div>
+          <div class="target-list q-mt-xs">
+            <div v-if="!targets.length" class="target-empty">No destinations — press + to add</div>
+            <div v-for="(t, i) in targets" :key="i" class="target-row">
+              <input
+                v-model="t.host"
+                class="add-input add-input--host"
+                placeholder="Host / IP"
+              />
+              <span class="add-sep">:</span>
+              <input
+                v-model="t.port"
+                class="add-input add-input--port"
+                placeholder="Port"
+                type="number"
+              />
+              <button class="target-del" @click="removeTarget(i)">
+                <q-icon name="close" size="14px" />
+              </button>
+            </div>
+          </div>
+        </div>
       </q-card-section>
 
       <q-separator />
@@ -122,4 +179,52 @@ function onOk() {
 
 .fade-enter-active, .fade-leave-active { transition: opacity 0.15s; }
 .fade-enter-from,   .fade-leave-to     { opacity: 0; }
+
+/* ── Targets ── */
+.dest-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.target-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.target-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.target-del  {
+  background: none; border: none; cursor: pointer;
+  color: #b0bec5; display: flex; align-items: center; padding: 2px;
+  flex-shrink: 0;
+}
+.target-del:hover { color: #e53935; }
+.target-empty {
+  font-size: 12px;
+  color: #b0bec5;
+  padding: 4px 2px;
+}
+.add-input {
+  border: 1px solid #cfd8dc;
+  border-radius: 3px;
+  padding: 5px 8px;
+  font-size: 13px;
+  color: #37474f;
+  outline: none;
+  background: #fafafa;
+}
+.add-input:focus { border-color: #1976d2; background: #fff; }
+.add-input--host { flex: 1; min-width: 0; }
+.add-input--port { width: 72px; }
+.add-sep { color: #90a4ae; font-size: 13px; flex-shrink: 0; }
+.add-btn {
+  background: #1565c0; border: none; border-radius: 3px;
+  color: #fff; cursor: pointer; padding: 4px 8px;
+  display: flex; align-items: center;
+}
+.add-btn:hover { background: #1976d2; }
+.add-btn:disabled { background: #b0bec5; cursor: not-allowed; }
 </style>

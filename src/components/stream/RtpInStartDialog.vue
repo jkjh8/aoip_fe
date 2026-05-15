@@ -56,7 +56,7 @@ function onOk() {
           <q-input
             v-model="address"
             dense outlined
-            placeholder="0.0.0.0 또는 멀티캐스트 239.x.x.x"
+            placeholder="0.0.0.0 or multicast 239.x.x.x"
             class="q-mt-xs"
           />
         </div>
@@ -68,7 +68,7 @@ function onOk() {
             v-model="port"
             dense outlined
             type="number"
-            placeholder="포트 번호"
+            placeholder="Port number"
             class="q-mt-xs"
           />
         </div>
@@ -80,7 +80,7 @@ function onOk() {
             v-model="bufferMs"
             dense outlined
             type="number"
-            placeholder="버퍼 (ms)"
+            placeholder="Buffer size in ms"
             class="q-mt-xs"
           />
         </div>
