@@ -80,16 +80,16 @@ function groupKey(group) {
 }
 
 function isInConnected(inCh, outGroup) {
-  if (outGroup.stereo) return isConnected(inCh.jackPort, outGroup.left.jackPort)
-  return isConnected(inCh.jackPort, outGroup.ch.jackPort)
+  if (outGroup.stereo) return isConnected(inCh.port, outGroup.left.port)
+  return isConnected(inCh.port, outGroup.ch.port)
 }
 
 function toggleForGroup(inCh, outGroup) {
   if (outGroup.stereo) {
-    toggleConnection(inCh.jackPort, outGroup.left.jackPort)
-    toggleConnection(inCh.jackPort, outGroup.right.jackPort)
+    toggleConnection(inCh.port, outGroup.left.port)
+    toggleConnection(inCh.port, outGroup.right.port)
   } else {
-    toggleConnection(inCh.jackPort, outGroup.ch.jackPort)
+    toggleConnection(inCh.port, outGroup.ch.port)
   }
 }
 </script>
@@ -119,8 +119,8 @@ function toggleForGroup(inCh, outGroup) {
             <template v-if="inGroup.stereo">
               <button
                 class="route-ch-btn"
-                :class="{ active: isConnected(inGroup.left.jackPort, routeTarget.left.jackPort) }"
-                @click="toggleConnection(inGroup.left.jackPort, routeTarget.left.jackPort)"
+                :class="{ active: isConnected(inGroup.left.port, routeTarget.left.port) }"
+                @click="toggleConnection(inGroup.left.port, routeTarget.left.port)"
               >
                 <span
                   class="route-ch-tag"
@@ -132,9 +132,9 @@ function toggleForGroup(inCh, outGroup) {
               <button
                 class="route-ch-btn"
                 :class="{
-                  active: isConnected(inGroup.right.jackPort, routeTarget.left.jackPort),
+                  active: isConnected(inGroup.right.port, routeTarget.left.port),
                 }"
-                @click="toggleConnection(inGroup.right.jackPort, routeTarget.left.jackPort)"
+                @click="toggleConnection(inGroup.right.port, routeTarget.left.port)"
               >
                 <span
                   class="route-ch-tag"
@@ -147,8 +147,8 @@ function toggleForGroup(inCh, outGroup) {
             <template v-else>
               <button
                 class="route-ch-btn"
-                :class="{ active: isConnected(inGroup.ch.jackPort, routeTarget.left.jackPort) }"
-                @click="toggleConnection(inGroup.ch.jackPort, routeTarget.left.jackPort)"
+                :class="{ active: isConnected(inGroup.ch.port, routeTarget.left.port) }"
+                @click="toggleConnection(inGroup.ch.port, routeTarget.left.port)"
               >
                 <span
                   class="route-ch-tag"
@@ -170,9 +170,9 @@ function toggleForGroup(inCh, outGroup) {
               <button
                 class="route-ch-btn"
                 :class="{
-                  active: isConnected(inGroup.left.jackPort, routeTarget.right.jackPort),
+                  active: isConnected(inGroup.left.port, routeTarget.right.port),
                 }"
-                @click="toggleConnection(inGroup.left.jackPort, routeTarget.right.jackPort)"
+                @click="toggleConnection(inGroup.left.port, routeTarget.right.port)"
               >
                 <span
                   class="route-ch-tag"
@@ -184,9 +184,9 @@ function toggleForGroup(inCh, outGroup) {
               <button
                 class="route-ch-btn"
                 :class="{
-                  active: isConnected(inGroup.right.jackPort, routeTarget.right.jackPort),
+                  active: isConnected(inGroup.right.port, routeTarget.right.port),
                 }"
-                @click="toggleConnection(inGroup.right.jackPort, routeTarget.right.jackPort)"
+                @click="toggleConnection(inGroup.right.port, routeTarget.right.port)"
               >
                 <span
                   class="route-ch-tag"
@@ -199,8 +199,8 @@ function toggleForGroup(inCh, outGroup) {
             <template v-else>
               <button
                 class="route-ch-btn"
-                :class="{ active: isConnected(inGroup.ch.jackPort, routeTarget.right.jackPort) }"
-                @click="toggleConnection(inGroup.ch.jackPort, routeTarget.right.jackPort)"
+                :class="{ active: isConnected(inGroup.ch.port, routeTarget.right.port) }"
+                @click="toggleConnection(inGroup.ch.port, routeTarget.right.port)"
               >
                 <span
                   class="route-ch-tag"

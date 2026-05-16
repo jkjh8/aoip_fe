@@ -275,12 +275,12 @@ function sdpCodec(sdp) {
 </script>
 
 <template>
-  <q-page class="row justify-center q-pa-md">
-    <div class="column q-gutter-md" style="width: 100%; max-width: 680px">
+  <q-page class="row justify-start q-pa-md">
+    <div class="column q-gutter-md" style="width: 100%; max-width: 600px">
       <!-- Daemon + PTP status header -->
       <q-card flat style="border: 1px solid #e0e0e0">
-        <q-card-section class="q-py-sm">
-          <div class="row no-wrap justify-between items-center">
+        <q-card-section class="q-py-sm" style="min-height: 52px; display: flex; align-items: center;">
+          <div class="row no-wrap justify-between items-center" style="width:100%">
             <div class="row items-center q-gutter-x-sm">
               <span class="header-title">AES67</span>
               <q-badge

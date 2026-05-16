@@ -5,8 +5,8 @@ import RebootPanel from 'src/components/settings/RebootPanel.vue'
 </script>
 
 <template>
-  <q-page class="row justify-center q-pa-md">
-    <div class="column q-gutter-md">
+  <q-page class="row justify-start q-pa-md">
+    <div class="column q-gutter-md" style="width: 100%; max-width: 600px">
       <NetworkPanel />
       <!-- <DevicePanel /> -->
       <RebootPanel />

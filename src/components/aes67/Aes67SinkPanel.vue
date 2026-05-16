@@ -23,8 +23,8 @@ const meterChannels = computed(() => {
   const mapSet = new Set(props.sink.map ?? [])
   return aoipState.channels.outputs
     .filter((ch) => {
-      const m = ch.port?.match(/^aes67:out_(\d+)$/)
-      return m && mapSet.has(Number(m[1]))
+      const m = ch.port?.match(/^aes67:sin_(\d+)$/)
+      return m && mapSet.has(Number(m[1]) - 1)
     })
     .map((ch) => ({ level: ch.level, muted: ch.muted, label: ch.label }))
 })

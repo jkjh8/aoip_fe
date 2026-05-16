@@ -49,11 +49,11 @@ function isConnected(inputPort, outputPort) {
 }
 
 function allDots(outGroup) {
-  const port = outGroup.stereo ? outGroup.left.jackPort : outGroup.ch.jackPort
+  const port = outGroup.stereo ? outGroup.left.port : outGroup.ch.port
   return aoipState.filteredInputs.map((ch) => ({
-    port: ch.jackPort,
-    color: isConnected(ch.jackPort, port) ? typeTag(ch.label).color : '#d0d0d0',
-    connected: isConnected(ch.jackPort, port),
+    port: ch.port,
+    color: isConnected(ch.port, port) ? typeTag(ch.label).color : '#d0d0d0',
+    connected: isConnected(ch.port, port),
   }))
 }
 </script>

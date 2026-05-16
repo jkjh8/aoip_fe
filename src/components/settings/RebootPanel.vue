@@ -1,11 +1,27 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useAoipStore } from 'src/stores/aoip'
 import { useSettingsStore } from 'src/stores/settings'
 import { useQuasar } from 'quasar'
 
+const aoipState = useAoipStore()
 const store = useSettingsStore()
 const $q = useQuasar()
 const confirm = ref(false)
+
+const engineReady = computed(() => aoipState.engine.ready ?? aoipState.engine.running ?? null)
+const engineSec   = computed(() => aoipState.engine.uptime ?? null)
+
+function fmtUptime(sec) {
+  if (sec == null) return '—'
+  const d = Math.floor(sec / 86400)
+  const h = Math.floor((sec % 86400) / 3600)
+  const m = Math.floor((sec % 3600) / 60)
+  const s = sec % 60
+  if (d > 0) return `${d}d ${h}h ${m}m`
+  if (h > 0) return `${h}h ${m}m ${s}s`
+  return `${m}m ${s}s`
+}
 
 function doReboot() {
   confirm.value = false
@@ -21,6 +37,20 @@ function doReboot() {
       <span class="st-panel-title">System</span>
     </div>
     <q-separator />
+
+    <div class="st-section-label">Status</div>
+    <div class="row no-wrap justify-between items-center q-px-md q-my-sm">
+      <span class="row-label">Engine</span>
+      <q-badge
+        v-if="engineReady !== null"
+        outline
+        :color="engineReady ? 'positive' : 'warning'"
+      >{{ engineReady ? 'Running' : 'Stopped' }}</q-badge>
+    </div>
+    <div class="row no-wrap justify-between items-center q-px-md q-my-sm">
+      <span class="row-label">Engine Uptime</span>
+      <span class="uptime-val">{{ fmtUptime(engineSec) }}</span>
+    </div>
 
     <div class="st-section-label">Power</div>
     <div class="row no-wrap justify-between items-center q-px-md q-my-sm">
@@ -108,6 +138,13 @@ function doReboot() {
   color: #546e7a;
   width: 110px;
   flex-shrink: 0;
+}
+.uptime-val {
+  font-size: 13px;
+  font-weight: 500;
+  color: #37474f;
+  font-variant-numeric: tabular-nums;
+  font-family: 'Courier New', monospace;
 }
 
 .dialog-head {

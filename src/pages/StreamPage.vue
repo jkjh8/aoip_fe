@@ -33,7 +33,7 @@ watch(
 </script>
 
 <template>
-  <q-page class="row justify-center q-pa-md">
+  <q-page class="row justify-start q-pa-md">
     <div v-if="!aoipState.connected" class="row justify-center q-pa-md">
       <q-chip color="negative" text-color="white" icon="wifi_off">lost connection</q-chip>
     </div>

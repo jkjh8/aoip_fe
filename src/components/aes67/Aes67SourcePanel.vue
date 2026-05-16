@@ -28,8 +28,8 @@ const meterChannels = computed(() => {
   const mapSet = new Set(props.source.map ?? [])
   return aoipState.channels.inputs
     .filter((ch) => {
-      const m = ch.port?.match(/^aes67:in_(\d+)$/)
-      return m && mapSet.has(Number(m[1]))
+      const m = ch.port?.match(/^aes67:out_(\d+)$/)
+      return m && mapSet.has(Number(m[1]) - 1)
     })
     .map((ch) => ({ level: ch.level, muted: ch.muted, label: ch.label }))
 })
@@ -138,10 +138,10 @@ function viewSdp() {
           </q-badge>
         </div>
         <div class="row items-center">
-          <q-btn flat round size="sm" icon="data_object" color="grey-6" @click="viewSdp">
+          <q-btn flat round size="md" icon="data_object" color="grey-6" @click="viewSdp">
             <q-tooltip>SDP 보기</q-tooltip>
           </q-btn>
-          <q-btn flat round size="sm" icon="edit" color="grey-6" @click="openEdit">
+          <q-btn flat round size="md" icon="edit" color="grey-6" @click="openEdit">
             <q-tooltip>수정</q-tooltip>
           </q-btn>
           <q-btn flat round size="md"
@@ -151,7 +151,7 @@ function viewSdp() {
             @click="patch({ enabled: !source.enabled })">
             <q-tooltip>{{ source.enabled ? 'Disable' : 'Enable' }}</q-tooltip>
           </q-btn>
-          <q-btn flat round size="sm" icon="delete_outline" color="negative" @click="remove">
+          <q-btn flat round size="md" icon="delete_outline" color="negative" @click="remove">
             <q-tooltip>삭제</q-tooltip>
           </q-btn>
           <LevelMeter v-if="meterChannels.length" :channels="meterChannels" />

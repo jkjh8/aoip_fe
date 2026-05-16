@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 export const useAoipStore = defineStore('aoip', {
   state: () => ({
     connected: false,
-    engine:      { running: false },
+    engine:      { running: false, ready: false, uptime: null },
     aes67:       { running: false, ready: false, url: '' },
     aes67Sources: [],
     aes67Sinks:   [],

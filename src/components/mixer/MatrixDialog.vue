@@ -92,8 +92,8 @@ function shortLabel(label) {
                 v-for="out in outputs"
                 :key="out.id"
                 class="mx-cell"
-                :class="{ 'mx-cell--on': isConnected(inp.jackPort, out.jackPort) }"
-                @click="toggle(inp.jackPort, out.jackPort)"
+                :class="{ 'mx-cell--on': isConnected(inp.port, out.port) }"
+                @click="toggle(inp.port, out.port)"
               />
             </tr>
           </tbody>
