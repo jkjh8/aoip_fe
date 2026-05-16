@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { socket } from 'src/boot/socket'
 import { useAoipStore } from 'src/stores/aoip'
 import Aes67SourcePanel from 'src/components/aes67/Aes67SourcePanel.vue'
@@ -7,7 +7,21 @@ import Aes67SinkPanel from 'src/components/aes67/Aes67SinkPanel.vue'
 
 const aoipState = useAoipStore()
 
-// ── Data (소켓 이벤트로 자동 갱신됨) ────────────────────
+// ── Data 로드 ─────────────────────────────────────────────
+function fetchSources() {
+  socket.emit('aes67:sources:list', (res) => {
+    if (res?.ok) aoipState.aes67Sources = res.sources ?? []
+  })
+}
+function fetchSinks() {
+  socket.emit('aes67:sinks:list', (res) => {
+    if (res?.ok) aoipState.aes67Sinks = res.sinks ?? []
+  })
+}
+function fetchAll() { fetchSources(); fetchSinks() }
+
+onMounted(fetchAll)
+
 const sources = computed(() => aoipState.aes67Sources)
 const sinks   = computed(() => aoipState.aes67Sinks)
 const ptpStatus = computed(() => aoipState.aes67PtpStatus)
@@ -76,9 +90,23 @@ function confirmAddSource() {
     return
   }
 
+  const map = Array.from({ length: f.channels }, (_, i) => f.chStart + i)
+
+  const addrConflict = sources.value.find((s) => s.address === f.address.trim())
+  if (addrConflict) {
+    srcError.value = `주소 ${f.address.trim()}는 "${addrConflict.name}"에서 이미 사용 중입니다`
+    return
+  }
+  const mapSet = new Set(map)
+  const chConflict = sources.value.find((s) => (s.map ?? []).some((ch) => mapSet.has(ch)))
+  if (chConflict) {
+    const used = chConflict.map.filter((ch) => mapSet.has(ch)).map((ch) => `Ch ${ch + 1}`).join(', ')
+    srcError.value = `채널이 "${chConflict.name}"과 겹칩니다 (${used})`
+    return
+  }
+
   srcBusy.value = true
   srcError.value = ''
-  const map = Array.from({ length: f.channels }, (_, i) => f.chStart + i)
   socket.emit('aes67:source:add', {
     id: nextSourceId.value,
     enabled: true,
@@ -95,6 +123,7 @@ function confirmAddSource() {
   }, (res) => {
     if (res?.ok) {
       showAddSource.value = false
+      fetchSources()
     } else {
       srcError.value = res?.error ?? 'Failed'
     }
@@ -174,9 +203,17 @@ function confirmAddSink() {
     return
   }
 
+  const map = Array.from({ length: f.channels }, (_, i) => f.chStart + i)
+  const mapSet = new Set(map)
+  const chConflict = sinks.value.find((s) => (s.map ?? []).some((ch) => mapSet.has(ch)))
+  if (chConflict) {
+    const used = chConflict.map.filter((ch) => mapSet.has(ch)).map((ch) => `Ch ${ch + 1}`).join(', ')
+    sinkError.value = `채널이 "${chConflict.name}"과 겹칩니다 (${used})`
+    return
+  }
+
   sinkBusy.value = true
   sinkError.value = ''
-  const map = Array.from({ length: f.channels }, (_, i) => f.chStart + i)
 
   let body
   if (sinkTab.value === 'browse') {
@@ -216,6 +253,7 @@ function confirmAddSink() {
   socket.emit('aes67:sink:add', { id: nextSinkId.value, ...body }, (res) => {
     if (res?.ok) {
       showAddSink.value = false
+      fetchSinks()
     } else {
       sinkError.value = res?.error ?? 'Failed'
     }
@@ -289,7 +327,7 @@ function sdpCodec(sdp) {
         </q-btn>
       </div>
 
-      <Aes67SourcePanel v-for="src in sources" :key="src.id" :source="src" />
+      <Aes67SourcePanel v-for="src in sources" :key="src.id" :source="src" @refresh="fetchSources" />
       <div v-if="aes67.ready && !sources.length" class="empty-hint">
         <q-icon name="upload" size="32px" color="blue-grey-3" />
         <span>소스 없음</span>
@@ -319,7 +357,7 @@ function sdpCodec(sdp) {
         </q-btn>
       </div>
 
-      <Aes67SinkPanel v-for="sk in sinks" :key="sk.id" :sink="sk" />
+      <Aes67SinkPanel v-for="sk in sinks" :key="sk.id" :sink="sk" @refresh="fetchSinks" />
       <div v-if="aes67.ready && !sinks.length" class="empty-hint">
         <q-icon name="download" size="32px" color="blue-grey-3" />
         <span>싱크 없음</span>

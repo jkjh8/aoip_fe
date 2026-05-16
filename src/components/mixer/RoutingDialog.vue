@@ -63,7 +63,6 @@ function inputTypeTag(label) {
   const l = label.toLowerCase()
   if (l.includes('analog')) return { text: 'ANA', color: '#1976d2' }
   if (l.includes('aes67')) return { text: 'AES', color: '#7b1fa2' }
-  if (l.includes('usb')) return { text: 'USB', color: '#388e3c' }
   return { text: label.substring(0, 3).toUpperCase(), color: '#546e7a' }
 }
 

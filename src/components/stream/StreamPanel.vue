@@ -46,38 +46,69 @@ function toggleStream() {
         else emit('refresh', props.s.client)
       })
     })
-  } else if (props.s.type === 'rtp_in') {
+  } else {
+    openEdit()
+  }
+}
+
+function openEdit() {
+  if (props.s.type === 'rtp_in') {
     $q.dialog({
       component: RtpInStartDialog,
       componentProps: { detail: props.detail, name: props.detail?.name ?? props.s.client },
     }).onOk((cfg) => {
-      busy.value = true
-      socket.emit('rtp:stream:start', { client: props.s.client, ...cfg }, (res) => {
-        busy.value = false
-        if (!res?.ok) console.error('[stream] start failed', res?.error)
-        else emit('refresh', props.s.client)
-      })
+      applyRtpIn(cfg)
     })
   } else {
     $q.dialog({
       component: RtpOutStartDialog,
       componentProps: { detail: props.detail, name: props.detail?.name ?? props.s.client },
     }).onOk(({ protocol, codec, bitrate, targets }) => {
-      busy.value = true
-      const client = props.s.client
-      socket.emit('rtp:out:codec', { client, codec, bitrate }, (res) => {
-        if (!res?.ok) {
-          busy.value = false
-          console.error('[stream] codec set failed', res?.error)
-          return
-        }
-        socket.emit('rtp:stream:start', { client, protocol, targets }, (res2) => {
-          busy.value = false
-          if (!res2?.ok) console.error('[stream] start failed', res2?.error)
-          else emit('refresh', client)
-        })
+      applyRtpOut({ protocol, codec, bitrate, targets })
+    })
+  }
+}
+
+function applyRtpIn(cfg) {
+  busy.value = true
+  const client = props.s.client
+  const doStart = () => {
+    socket.emit('rtp:stream:start', { client, ...cfg }, (res) => {
+      busy.value = false
+      if (!res?.ok) console.error('[stream] start failed', res?.error)
+      else emit('refresh', client)
+    })
+  }
+  if (props.s.running) {
+    socket.emit('rtp:stream:stop', { client }, (res) => {
+      if (!res?.ok) { busy.value = false; return }
+      doStart()
+    })
+  } else {
+    doStart()
+  }
+}
+
+function applyRtpOut({ protocol, codec, bitrate, targets }) {
+  busy.value = true
+  const client = props.s.client
+  const doStart = () => {
+    socket.emit('rtp:out:codec', { client, codec, bitrate }, (res) => {
+      if (!res?.ok) { busy.value = false; console.error('[stream] codec set failed', res?.error); return }
+      socket.emit('rtp:stream:start', { client, protocol, targets }, (res2) => {
+        busy.value = false
+        if (!res2?.ok) console.error('[stream] start failed', res2?.error)
+        else emit('refresh', client)
       })
     })
+  }
+  if (props.s.running) {
+    socket.emit('rtp:stream:stop', { client }, (res) => {
+      if (!res?.ok) { busy.value = false; return }
+      doStart()
+    })
+  } else {
+    doStart()
   }
 }
 </script>
@@ -95,7 +126,7 @@ function toggleStream() {
           />
           <span class="item-title">{{ detail?.name ?? s.client }}</span>
         </div>
-        <div class="row">
+        <div class="row items-center">
           <LevelMeter v-if="meterChannels.length" :channels="meterChannels" />
           <q-btn
             flat
@@ -106,9 +137,7 @@ function toggleStream() {
             :loading="busy"
             @click="toggleStream"
           >
-            <q-tooltip>
-              {{ s.running ? 'Stop' : 'Start' }}
-            </q-tooltip>
+            <q-tooltip>{{ s.running ? 'Stop' : 'Start' }}</q-tooltip>
           </q-btn>
         </div>
       </div>
@@ -119,9 +148,18 @@ function toggleStream() {
         v-if="s.type === 'rtp_in'"
         :s="s"
         :detail="detail"
+        :busy="busy"
         @refresh="emit('refresh', s.client)"
+        @edit="openEdit"
       />
-      <RtpOutPanel v-else :s="s" :detail="detail" @refresh="emit('refresh', s.client)" />
+      <RtpOutPanel
+        v-else
+        :s="s"
+        :detail="detail"
+        :busy="busy"
+        @refresh="emit('refresh', s.client)"
+        @edit="openEdit"
+      />
     </q-card-section>
   </q-card>
 </template>

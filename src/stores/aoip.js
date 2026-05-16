@@ -1,5 +1,4 @@
 import { defineStore } from 'pinia'
-import { useSettingsStore } from './settings'
 
 export const useAoipStore = defineStore('aoip', {
   state: () => ({
@@ -21,15 +20,7 @@ export const useAoipStore = defineStore('aoip', {
   }),
 
   getters: {
-    filteredInputs(state) {
-      const { usbConnected } = useSettingsStore()
-      if (usbConnected) return state.channels.inputs
-      return state.channels.inputs.filter((ch) => !ch.label.toLowerCase().includes('usb'))
-    },
-    filteredOutputs(state) {
-      const { usbConnected } = useSettingsStore()
-      if (usbConnected) return state.channels.outputs
-      return state.channels.outputs.filter((ch) => !ch.label.toLowerCase().includes('usb'))
-    },
+    filteredInputs: (state) => state.channels.inputs,
+    filteredOutputs: (state) => state.channels.outputs,
   },
 })

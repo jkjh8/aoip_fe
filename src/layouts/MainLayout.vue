@@ -48,5 +48,6 @@ const linksList = [
   { title: 'AES67',   caption: 'AES67 Sources/Sinks', icon: 'settings_ethernet', link: '/aes67' },
   { title: 'Devices',  caption: 'Audio Interfaces',   icon: 'devices',      link: '/devices' },
   { title: 'Settings', caption: 'Application Settings',icon: 'settings',link: '/settings' },
+  { title: 'Raw',      caption: 'Pinia Raw State',     icon: 'data_object', link: '/raw' },
 ]
 </script>

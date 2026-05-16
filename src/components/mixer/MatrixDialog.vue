@@ -29,7 +29,6 @@ function typeColor(label) {
   if (l.includes('analog'))  return '#1976d2'
   if (l.includes('aes67'))   return '#7b1fa2'
   if (l.includes('stream'))  return '#e65100'
-  if (l.includes('usb'))     return '#388e3c'
   return '#546e7a'
 }
 
@@ -38,7 +37,6 @@ function typeTag(label) {
   if (l.includes('analog'))  return 'ANA'
   if (l.includes('aes67'))   return 'AES'
   if (l.includes('stream'))  return 'STR'
-  if (l.includes('usb'))     return 'USB'
   return label.substring(0, 3).toUpperCase()
 }
 

@@ -15,11 +15,12 @@ export const socket = io(serverUrl, {
 export default defineBoot(({ app, pinia }) => {
   app.config.globalProperties.$socket = socket
 
-  const store = useAoipStore(pinia)
+  const store         = useAoipStore(pinia)
   const settingsStore = useSettingsStore(pinia)
 
   socket.on('connect', () => {
     store.connected = true
+    settingsStore.fetchNetwork()
   })
   socket.on('disconnect', () => {
     store.connected = false
@@ -32,10 +33,6 @@ export default defineBoot(({ app, pinia }) => {
     store.channels = data.channels
     if (data.connections) store.connections = data.connections
     if (data.rxStats) store.rxStats = data.rxStats
-    if (data.usb) {
-      if (data.usb.connected !== undefined) settingsStore.usbConnected = data.usb.connected
-      if (data.usb.enabled !== undefined) settingsStore.usbEnabled = data.usb.enabled
-    }
   })
   socket.on('aes67:sources', (data) => {
     store.aes67Sources = Array.isArray(data) ? data : (data?.sources ?? [])
@@ -48,6 +45,9 @@ export default defineBoot(({ app, pinia }) => {
   })
   socket.on('rx:stats', (data) => {
     store.rxStats = data
+  })
+  socket.on('system:network', (data) => {
+    if (data) Object.assign(settingsStore.network, data)
   })
   socket.on('channels', (data) => {
     store.channels = data

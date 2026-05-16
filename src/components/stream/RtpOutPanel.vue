@@ -5,11 +5,12 @@ import { useQuasar } from 'quasar'
 import AddTargetDialog from './AddTargetDialog.vue'
 
 const props = defineProps({
-  s:      { type: Object, required: true },
-  detail: { type: Object, default: () => ({}) },
+  s:      { type: Object,  required: true },
+  detail: { type: Object,  default: () => ({}) },
+  busy:   { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['refresh'])
+const emit = defineEmits(['refresh', 'edit'])
 
 const $q = useQuasar()
 
@@ -53,36 +54,34 @@ function removeTarget(host, port) {
 </script>
 
 <template>
-  <!-- Live stats -->
-  <div class="st-section-label">Send Stream</div>
-  <div class="st-strip stat-row">
-    <div class="stat-item">
-      <span class="stat-key">Bitrate</span>
-      <span class="stat-val" :class="liveKbps > 0 ? 'stat-active' : 'stat-muted'">
+  <!-- Live stats + Format compact -->
+  <div class="st-section-label">
+    Send Stream
+    <q-btn flat dense round size="xs" icon="edit" color="grey-5" :disable="busy" class="lbl-btn" @click="emit('edit')">
+      <q-tooltip>수정{{ busy ? ' (처리중)' : '' }}</q-tooltip>
+    </q-btn>
+  </div>
+  <div class="st-strip cs-wrap">
+    <span class="cs-item cs-w-bitrate">
+      <span class="cs-key">Bitrate</span>
+      <span class="cs-val" :class="liveKbps > 0 ? 'cs-active' : 'cs-muted'">
         {{ liveKbps > 0 ? liveKbps + ' kbps' : '—' }}
       </span>
-    </div>
-    <div class="stat-item">
-      <span class="stat-key">Sent</span>
-      <span class="stat-val" :class="liveBytesSent > 0 ? 'stat-active' : 'stat-muted'">
+    </span>
+    <span class="cs-item cs-w-sent">
+      <span class="cs-key">Sent</span>
+      <span class="cs-val" :class="liveBytesSent > 0 ? 'cs-active' : 'cs-muted'">
         {{ liveBytesSent > 0 ? fmtBytes(liveBytesSent) : '—' }}
       </span>
-    </div>
-  </div>
-
-  <q-separator />
-
-  <!-- Format info (text) -->
-  <div class="st-section-label">Format</div>
-  <div class="st-strip info-grid">
-    <div class="info-row">
-      <span class="info-key">Protocol</span>
-      <span class="info-val">{{ curProtocol.toUpperCase() }}</span>
-    </div>
-    <div class="info-row">
-      <span class="info-key">Codec</span>
-      <span class="info-val">{{ formatLabel }}</span>
-    </div>
+    </span>
+    <span class="cs-item cs-w-proto">
+      <span class="cs-key">Protocol</span>
+      <span class="cs-val">{{ curProtocol.toUpperCase() }}</span>
+    </span>
+    <span class="cs-item cs-w-codec">
+      <span class="cs-key">Codec</span>
+      <span class="cs-val">{{ formatLabel }}</span>
+    </span>
   </div>
 
   <q-separator />
@@ -120,7 +119,7 @@ function removeTarget(host, port) {
 .st-section-label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-size: 11px;
   font-weight: 700;
   color: #90a4ae;
@@ -128,28 +127,31 @@ function removeTarget(host, port) {
   text-transform: uppercase;
   padding: 10px 18px 5px;
 }
+.lbl-btn { margin-left: 2px; opacity: 0.6; }
+.lbl-btn:hover { opacity: 1; }
 .add-btn { margin-left: auto; }
 
 .st-strip {
   padding: 8px 18px 12px;
 }
 
-/* ── Stats ── */
-.stat-row  { display: flex; gap: 24px; }
-.stat-item { display: flex; flex-direction: column; gap: 2px; }
-.stat-key  { font-size: 10px; font-weight: 700; color: #90a4ae; letter-spacing: 0.5px; text-transform: uppercase; }
-.stat-val  { font-size: 14px; font-weight: 600; }
-.stat-active { color: #1565c0; }
-.stat-muted  { color: #b0bec5; }
-
-/* ── Info grid (format display) ── */
-.info-grid { display: flex; flex-direction: column; gap: 6px; }
-.info-row  { display: flex; align-items: center; font-size: 13px; }
-.info-key  {
-  font-size: 11px; font-weight: 700; color: #90a4ae;
-  letter-spacing: 0.5px; width: 70px; flex-shrink: 0;
+/* ── Compact inline stats ── */
+.cs-wrap  { display: flex; flex-wrap: wrap; gap: 5px 18px; align-items: center; }
+.cs-item  { display: flex; gap: 4px; align-items: center; white-space: nowrap; }
+.cs-key   { font-size: 11px; font-weight: 700; color: #90a4ae; letter-spacing: 0.4px; }
+.cs-val   {
+  font-size: 12px; font-weight: 500; color: #37474f;
+  font-variant-numeric: tabular-nums;
+  font-family: 'Courier New', monospace;
 }
-.info-val  { color: #37474f; font-weight: 500; }
+.cs-active { color: #1565c0; font-weight: 600; }
+.cs-muted  { color: #b0bec5; }
+
+/* ── Fixed item widths ── */
+.cs-w-bitrate { min-width: 96px; }
+.cs-w-sent    { min-width: 80px; }
+.cs-w-proto   { min-width: 68px; }
+.cs-w-codec   { min-width: 100px; }
 
 /* ── Target list ── */
 .target-list { display: flex; flex-direction: column; gap: 5px; min-height: 28px; }

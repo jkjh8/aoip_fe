@@ -1,12 +1,16 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { socket } from 'src/boot/socket'
+import { useAoipStore } from 'src/stores/aoip'
+import LevelMeter from 'src/components/mixer/LevelMeter.vue'
 
 const props = defineProps({
   sink: { type: Object, required: true },
 })
 
+const emit = defineEmits(['refresh'])
 
+const aoipState = useAoipStore()
 const status = ref(null)
 
 onMounted(() => {
@@ -15,42 +19,41 @@ onMounted(() => {
   })
 })
 
-// SDP에서 소스 이름 파싱
-const sourceName = computed(() => {
-  const sdpName = (props.sink.sdp ?? '').match(/^s=(.+)$/m)?.[1]?.trim()
-  if (sdpName) return sdpName
-  return props.sink.source ?? '—'
+const meterChannels = computed(() => {
+  const mapSet = new Set(props.sink.map ?? [])
+  return aoipState.channels.outputs
+    .filter((ch) => {
+      const m = ch.port?.match(/^aes67:out_(\d+)$/)
+      return m && mapSet.has(Number(m[1]))
+    })
+    .map((ch) => ({ level: ch.level, muted: ch.muted, label: ch.label }))
 })
 
-// SDP에서 codec/rate/ch 추출
-const sdpFormat = computed(() => {
-  const sdp = props.sink.sdp ?? ''
-  const m = sdp.match(/a=rtpmap:\d+\s+([^/\s]+)\/(\d+)(?:\/(\d+))?/)
-  if (!m) return null
-  return { codec: m[1], rate: Number(m[2]), channels: Number(m[3] ?? 1) }
+const sourceName = computed(() => {
+  const sdpName = (props.sink.sdp ?? '').match(/^s=(.+)$/m)?.[1]?.trim()
+  return sdpName || props.sink.source || '—'
 })
 
 const mapLabel = computed(() => {
   const m = props.sink.map ?? []
   if (!m.length) return '—'
   if (m.length === 1) return `Ch ${m[0] + 1}`
-  return `Ch ${m[0] + 1} – ${m[m.length - 1] + 1} (${m.length}ch)`
+  return `Ch ${m[0] + 1}–${m[m.length - 1] + 1} (${m.length}ch)`
 })
 
 const delayMs = computed(() => {
   const d = props.sink.delay ?? 0
-  return d ? `${d} samp (${(d / 48).toFixed(1)}ms)` : '—'
+  return d ? `${d} (${(d / 48).toFixed(1)}ms)` : '—'
 })
 
 const isLocked = computed(() => {
   if (!status.value) return null
-  // 데몬 status 필드: is_sink_connected, sink_connected 등 버전마다 다름
   return status.value?.is_sink_connected ?? status.value?.connected ?? null
 })
 
 function remove() {
   if (!confirm(`"${props.sink.name}" 싱크를 삭제하시겠습니까?`)) return
-  socket.emit('aes67:sink:remove', { id: props.sink.id })
+  socket.emit('aes67:sink:remove', { id: props.sink.id }, () => emit('refresh'))
 }
 </script>
 
@@ -58,59 +61,51 @@ function remove() {
   <q-card flat style="border: 1px solid #e0e0e0">
     <!-- Header -->
     <q-card-section class="q-py-sm">
-      <div class="row no-wrap justify-between items-center">
-        <div class="row items-center q-gutter-x-sm">
-          <q-icon name="download" size="sm" color="green-7" />
-          <span class="panel-title">{{ sink.name }}</span>
-          <q-badge v-if="isLocked !== null" outline
-            :color="isLocked ? 'positive' : 'warning'">
+      <div class="row no-wrap justify-between items-center q-gutter-x-sm">
+        <div class="q-gutter-x-sm">
+          <q-icon name="download" size="md" color="green-7" />
+          <span class="item-title">{{ sink.name }}</span>
+          <q-badge v-if="isLocked !== null" outline :color="isLocked ? 'positive' : 'warning'">
             {{ isLocked ? 'Connected' : 'Waiting' }}
           </q-badge>
         </div>
-        <q-btn flat dense round size="sm" icon="delete_outline" color="negative" @click="remove">
-          <q-tooltip>삭제</q-tooltip>
-        </q-btn>
+        <div class="row items-center">
+          <q-btn flat round size="md" icon="delete_outline" color="negative" @click="remove">
+            <q-tooltip>삭제</q-tooltip>
+          </q-btn>
+          <LevelMeter v-if="meterChannels.length" :channels="meterChannels" />
+        </div>
       </div>
     </q-card-section>
     <q-separator />
 
     <q-card-section class="q-pa-none">
-      <!-- Input info -->
       <div class="st-section-label">Input</div>
-      <div class="st-strip info-grid">
-        <div class="info-row">
-          <span class="info-key">Source</span>
-          <span class="info-val source-val">{{ sourceName }}</span>
+      <div class="st-strip cs-wrap">
+        <div class="cs-full">
+          <span class="cs-key">Src</span>
+          <span class="cs-val cs-mono cs-src">{{ sourceName }}</span>
         </div>
-        <div class="info-row" v-if="sdpFormat">
-          <span class="info-key">Format</span>
-          <span class="info-val">
-            <span class="badge-tag">{{ sdpFormat.codec }}</span>
-            <span class="badge-tag">{{ (sdpFormat.rate / 1000).toFixed(0) }}kHz</span>
-            <span class="badge-tag">{{ sdpFormat.channels }}ch</span>
-          </span>
-        </div>
-        <div class="info-row">
-          <span class="info-key">Channels</span>
-          <span class="info-val">{{ mapLabel }}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-key">Delay</span>
-          <span class="info-val" :class="sink.delay ? '' : 'info-muted'">{{ delayMs }}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-key">Refclk</span>
-          <span class="info-val">
-            {{ sink.ignore_refclk_gmid ? 'Any GM' : 'Strict GM' }}
-          </span>
-        </div>
+        <span class="cs-item cs-w-ch">
+          <span class="cs-key">Ch</span>
+          <span class="cs-val">{{ mapLabel }}</span>
+        </span>
+        <span class="cs-item cs-w-delay">
+          <span class="cs-key">Delay</span>
+          <span class="cs-val" :class="sink.delay ? '' : 'cs-muted'">{{ delayMs }}</span>
+        </span>
+        <span class="cs-item">
+          <span class="cs-key">Refclk</span>
+          <span class="cs-val">{{ sink.ignore_refclk_gmid ? 'Any GM' : 'Strict GM' }}</span>
+        </span>
       </div>
     </q-card-section>
+
   </q-card>
 </template>
 
 <style scoped>
-.panel-title { font-size: 14px; font-weight: 700; color: #37474f; }
+.item-title { font-size: 14px; font-weight: 700; color: #37474f; }
 
 .st-section-label {
   display: flex; align-items: center; gap: 8px;
@@ -120,19 +115,20 @@ function remove() {
 }
 .st-strip { padding: 8px 18px 12px; }
 
-.info-grid { display: flex; flex-direction: column; gap: 7px; }
-.info-row  { display: flex; align-items: flex-start; font-size: 13px; }
-.info-key  { font-size: 11px; font-weight: 700; color: #90a4ae; width: 60px; flex-shrink: 0; padding-top: 1px; }
-.info-val  { color: #37474f; font-weight: 500; display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
-.info-muted { color: #b0bec5; }
-
-.source-val {
-  font-size: 11px; color: #546e7a; word-break: break-all;
-  font-family: 'Courier New', monospace;
+/* ── Compact inline stats ── */
+.cs-wrap  { display: flex; flex-wrap: wrap; gap: 5px 18px; align-items: center; }
+.cs-full  { flex: 0 0 100%; display: flex; gap: 6px; align-items: center; }
+.cs-item  { display: flex; gap: 4px; align-items: center; white-space: nowrap; }
+.cs-key   { font-size: 11px; font-weight: 700; color: #90a4ae; letter-spacing: 0.4px; }
+.cs-val   {
+  font-size: 12px; font-weight: 500; color: #37474f;
+  font-variant-numeric: tabular-nums;
 }
+.cs-mono  { font-family: 'Courier New', monospace; }
+.cs-src   { font-size: 11px; color: #546e7a; word-break: break-all; }
+.cs-muted { color: #b0bec5; }
 
-.badge-tag {
-  font-size: 10px; font-weight: 700; padding: 1px 6px;
-  border-radius: 3px; background: #e3f2fd; color: #1565c0;
-}
+/* ── Fixed widths ── */
+.cs-w-ch    { min-width: 100px; }
+.cs-w-delay { min-width: 110px; }
 </style>
