@@ -63,8 +63,8 @@ function openEdit() {
     $q.dialog({
       component: RtpOutStartDialog,
       componentProps: { detail: props.detail, name: props.detail?.name ?? props.s.client },
-    }).onOk(({ protocol, codec, bitrate, targets }) => {
-      applyRtpOut({ protocol, codec, bitrate, targets })
+    }).onOk(({ protocol, codec, bitrate, sampleRate, targets }) => {
+      applyRtpOut({ protocol, codec, bitrate, sampleRate, targets })
     })
   }
 }
@@ -72,13 +72,28 @@ function openEdit() {
 function applyRtpIn(cfg) {
   busy.value = true
   const client = props.s.client
+  const { formatMode, codec, sampleRate, ...startCfg } = cfg
+
   const doStart = () => {
-    socket.emit('rtp:stream:start', { client, ...cfg }, (res) => {
-      busy.value = false
-      if (!res?.ok) console.error('[stream] start failed', res?.error)
-      else emit('refresh', client)
-    })
+    const startStream = () => {
+      socket.emit('rtp:stream:start', { client, ...startCfg }, (res) => {
+        busy.value = false
+        if (!res?.ok) console.error('[stream] start failed', res?.error)
+        else emit('refresh', client)
+      })
+    }
+
+    if (formatMode === 'manual') {
+      socket.emit('rtp:in:format', { client, codec, sampleRate }, (res) => {
+        if (!res?.ok) { busy.value = false; console.error('[stream] format set failed', res?.error); return }
+        startStream()
+      })
+    } else {
+      socket.emit('rtp:in:format', { client, codec: '', sampleRate: null })
+      startStream()
+    }
   }
+
   if (props.s.running) {
     socket.emit('rtp:stream:stop', { client }, (res) => {
       if (!res?.ok) { busy.value = false; return }
@@ -89,16 +104,19 @@ function applyRtpIn(cfg) {
   }
 }
 
-function applyRtpOut({ protocol, codec, bitrate, targets }) {
+function applyRtpOut({ protocol, codec, bitrate, sampleRate, targets }) {
   busy.value = true
   const client = props.s.client
   const doStart = () => {
-    socket.emit('rtp:out:codec', { client, codec, bitrate }, (res) => {
-      if (!res?.ok) { busy.value = false; console.error('[stream] codec set failed', res?.error); return }
-      socket.emit('rtp:stream:start', { client, protocol, targets }, (res2) => {
-        busy.value = false
-        if (!res2?.ok) console.error('[stream] start failed', res2?.error)
-        else emit('refresh', client)
+    socket.emit('rtp:out:rate', { client, sampleRate }, (res) => {
+      if (!res?.ok) { busy.value = false; console.error('[stream] rate set failed', res?.error); return }
+      socket.emit('rtp:out:codec', { client, codec, bitrate }, (res2) => {
+        if (!res2?.ok) { busy.value = false; console.error('[stream] codec set failed', res2?.error); return }
+        socket.emit('rtp:stream:start', { client, protocol, targets }, (res3) => {
+          busy.value = false
+          if (!res3?.ok) console.error('[stream] start failed', res3?.error)
+          else emit('refresh', client)
+        })
       })
     })
   }

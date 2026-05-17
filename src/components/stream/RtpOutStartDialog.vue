@@ -16,9 +16,12 @@ const bitrateOptions = {
   opus: [64,  96,  128, 192, 256, 320],
 }
 
-const protocol = ref(props.detail?.protocol ?? 'rtp')
-const codec    = ref(props.detail?.codec    ?? 'mp3')
-const bitrate  = ref(props.detail?.bitrate  ?? 320)
+const sampleRateOptions = [44100, 48000]
+
+const protocol   = ref(props.detail?.protocol   ?? 'rtp')
+const codec      = ref(props.detail?.codec      ?? 'mp3')
+const bitrate    = ref(props.detail?.bitrate    ?? 320)
+const sampleRate = ref(props.detail?.sampleRate ?? 48000)
 
 const showBitrate = computed(() => codec.value !== 'raw')
 
@@ -56,6 +59,7 @@ function onOk() {
       .map(t => ({ host: t.host.trim(), port: Number(t.port) })),
   }
   if (codec.value !== 'raw') cfg.bitrate = bitrate.value
+  cfg.sampleRate = sampleRate.value
   onDialogOK(cfg)
 }
 </script>
@@ -106,6 +110,20 @@ function onOk() {
             </div>
           </div>
         </transition>
+
+        <!-- Sample Rate -->
+        <div>
+          <div class="field-label">Sample Rate</div>
+          <div class="seg-group q-mt-xs">
+            <button
+              v-for="sr in sampleRateOptions"
+              :key="sr"
+              class="seg-btn seg-btn--sm"
+              :class="{ 'seg-btn--on': sampleRate === sr }"
+              @click="sampleRate = sr"
+            >{{ sr >= 1000 ? (sr / 1000) + 'k' : sr }}</button>
+          </div>
+        </div>
 
         <!-- Targets -->
         <div>
