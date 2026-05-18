@@ -20,18 +20,13 @@ onMounted(() => {
 })
 
 const meterChannels = computed(() => {
-  const mapSet = new Set(props.sink.map ?? [])
-  return aoipState.channels.outputs
-    .filter((ch) => {
-      const m = ch.port?.match(/^aes67:sin_(\d+)$/)
-      return m && mapSet.has(Number(m[1]) - 1)
-    })
+  const aes67Chs = aoipState.channels.inputs.filter((ch) =>
+    ch.label.toLowerCase().includes('aes67'),
+  )
+  return (props.sink.map ?? [])
+    .map((idx) => aes67Chs[idx])
+    .filter(Boolean)
     .map((ch) => ({ level: ch.level, muted: ch.muted, label: ch.label }))
-})
-
-const sourceName = computed(() => {
-  const sdpName = (props.sink.sdp ?? '').match(/^s=(.+)$/m)?.[1]?.trim()
-  return sdpName || props.sink.source || '—'
 })
 
 const mapLabel = computed(() => {
@@ -73,7 +68,7 @@ function remove() {
           <q-btn flat round size="md" icon="delete_outline" color="negative" @click="remove">
             <q-tooltip>삭제</q-tooltip>
           </q-btn>
-          <LevelMeter v-if="meterChannels.length" :channels="meterChannels" />
+          <LevelMeter v-if="meterChannels.length" :channels="meterChannels" :title="sink.name" />
         </div>
       </div>
     </q-card-section>
@@ -82,10 +77,6 @@ function remove() {
     <q-card-section class="q-pa-none">
       <div class="st-section-label">Input</div>
       <div class="st-strip cs-wrap">
-        <div class="cs-full">
-          <span class="cs-key">Src</span>
-          <span class="cs-val cs-mono cs-src">{{ sourceName }}</span>
-        </div>
         <span class="cs-item cs-w-ch">
           <span class="cs-key">Ch</span>
           <span class="cs-val">{{ mapLabel }}</span>
@@ -100,35 +91,79 @@ function remove() {
         </span>
       </div>
     </q-card-section>
-
   </q-card>
 </template>
 
 <style scoped>
-.item-title { font-size: 14px; font-weight: 700; color: #37474f; }
+.item-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #37474f;
+}
 
 .st-section-label {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 11px; font-weight: 700; color: #90a4ae;
-  letter-spacing: 0.8px; text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #90a4ae;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
   padding: 10px 18px 5px;
 }
-.st-strip { padding: 8px 18px 12px; }
+.st-strip {
+  padding: 8px 18px 12px;
+}
 
 /* ── Compact inline stats ── */
-.cs-wrap  { display: flex; flex-wrap: wrap; gap: 5px 18px; align-items: center; }
-.cs-full  { flex: 0 0 100%; display: flex; gap: 6px; align-items: center; }
-.cs-item  { display: flex; gap: 4px; align-items: center; white-space: nowrap; }
-.cs-key   { font-size: 11px; font-weight: 700; color: #90a4ae; letter-spacing: 0.4px; }
-.cs-val   {
-  font-size: 12px; font-weight: 500; color: #37474f;
+.cs-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 18px;
+  align-items: center;
+}
+.cs-full {
+  flex: 0 0 100%;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.cs-item {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  white-space: nowrap;
+}
+.cs-key {
+  font-size: 11px;
+  font-weight: 700;
+  color: #90a4ae;
+  letter-spacing: 0.4px;
+}
+.cs-val {
+  font-size: 12px;
+  font-weight: 500;
+  color: #37474f;
   font-variant-numeric: tabular-nums;
 }
-.cs-mono  { font-family: 'Courier New', monospace; }
-.cs-src   { font-size: 11px; color: #546e7a; word-break: break-all; }
-.cs-muted { color: #b0bec5; }
+.cs-mono {
+  font-family: 'Courier New', monospace;
+}
+.cs-src {
+  font-size: 11px;
+  color: #546e7a;
+  word-break: break-all;
+}
+.cs-muted {
+  color: #b0bec5;
+}
 
 /* ── Fixed widths ── */
-.cs-w-ch    { min-width: 100px; }
-.cs-w-delay { min-width: 110px; }
+.cs-w-ch {
+  min-width: 100px;
+}
+.cs-w-delay {
+  min-width: 110px;
+}
 </style>

@@ -2,8 +2,10 @@
 import { computed } from 'vue'
 import { socket } from 'src/boot/socket'
 import { useAoipStore } from 'src/stores/aoip'
+import { useChannelPanel } from 'src/composables/useChannelPanel'
 
 const aoipState = useAoipStore()
+const { channelGroups: inputGroups, groupLabel, groupKey, typeTag } = useChannelPanel('input')
 
 const props = defineProps({
   modelValue: {
@@ -23,29 +25,6 @@ const dialogOpen = computed({
   set: (v) => emit('update:modelValue', v),
 })
 
-const inputGroups = computed(() => {
-  const chs = aoipState.filteredInputs
-  const groups = []
-  let i = 0
-  while (i < chs.length) {
-    const ch = chs[i]
-    if (ch.label.toLowerCase().includes('analog')) {
-      groups.push({ stereo: false, ch })
-      i++
-    } else {
-      const next = chs[i + 1]
-      if (next && !next.label.toLowerCase().includes('analog')) {
-        groups.push({ stereo: true, left: ch, right: next })
-        i += 2
-      } else {
-        groups.push({ stereo: false, ch })
-        i++
-      }
-    }
-  }
-  return groups
-})
-
 function isConnected(inputPort, outputPort) {
   const entry = aoipState.connections.find((c) => c.port === inputPort)
   return entry ? entry.connections.includes(outputPort) : false
@@ -57,26 +36,6 @@ function toggleConnection(inputPort, outputPort) {
   } else {
     socket.emit('route:add', { src: inputPort, dst: outputPort })
   }
-}
-
-function inputTypeTag(label) {
-  const l = label.toLowerCase()
-  if (l.includes('analog')) return { text: 'ANA', color: '#1976d2' }
-  if (l.includes('aes67')) return { text: 'AES', color: '#7b1fa2' }
-  return { text: label.substring(0, 3).toUpperCase(), color: '#546e7a' }
-}
-
-function routeInputLabel(group) {
-  if (!group.stereo) return group.ch.label
-  return group.left.label.replace(/\s*(CH\d+|[LR]|\d+)$/i, '').trim()
-}
-
-function stereoLabel(left) {
-  return left.label.replace(/\s*(CH\d+|[LR]|\d+)$/i, '').trim()
-}
-
-function groupKey(group) {
-  return group.stereo ? group.left.id : group.ch.id
 }
 
 function isInConnected(inCh, outGroup) {
@@ -98,21 +57,13 @@ function toggleForGroup(inCh, outGroup) {
   <q-dialog v-model="dialogOpen">
     <q-card class="route-dialog">
       <q-card-section class="route-dialog-header">
-        <span class="item-title">
-          {{
-            routeTarget
-              ? routeTarget.stereo
-                ? stereoLabel(routeTarget.left)
-                : routeTarget.ch.label
-              : ''
-          }}
-        </span>
+        <span class="item-title">{{ routeTarget ? groupLabel(routeTarget) : '' }}</span>
         <q-btn flat dense round icon="close" size="sm" v-close-popup />
       </q-card-section>
       <!-- 스테레오 출력: L섹션(상단) / R섹션(하단) 분리 -->
       <template v-if="routeTarget && routeTarget.stereo">
         <q-card-section class="route-dialog-section-label">
-          {{ stereoLabel(routeTarget.left) }} L
+          {{ groupLabel(routeTarget) }} L
         </q-card-section>
         <q-card-section class="route-dialog-body">
           <template v-for="inGroup in inputGroups" :key="'L-' + groupKey(inGroup)">
@@ -124,10 +75,10 @@ function toggleForGroup(inCh, outGroup) {
               >
                 <span
                   class="route-ch-tag"
-                  :style="`background:${inputTypeTag(inGroup.left.label).color}`"
-                  >{{ inputTypeTag(inGroup.left.label).text }}</span
+                  :style="`background:${typeTag(inGroup.left.label).color}`"
+                  >{{ typeTag(inGroup.left.label).text }}</span
                 >
-                <span class="route-ch-name">{{ routeInputLabel(inGroup) }} L</span>
+                <span class="route-ch-name">{{ groupLabel(inGroup) }} L</span>
               </button>
               <button
                 class="route-ch-btn"
@@ -138,10 +89,10 @@ function toggleForGroup(inCh, outGroup) {
               >
                 <span
                   class="route-ch-tag"
-                  :style="`background:${inputTypeTag(inGroup.right.label).color}`"
-                  >{{ inputTypeTag(inGroup.right.label).text }}</span
+                  :style="`background:${typeTag(inGroup.right.label).color}`"
+                  >{{ typeTag(inGroup.right.label).text }}</span
                 >
-                <span class="route-ch-name">{{ routeInputLabel(inGroup) }} R</span>
+                <span class="route-ch-name">{{ groupLabel(inGroup) }} R</span>
               </button>
             </template>
             <template v-else>
@@ -152,17 +103,17 @@ function toggleForGroup(inCh, outGroup) {
               >
                 <span
                   class="route-ch-tag"
-                  :style="`background:${inputTypeTag(inGroup.ch.label).color}`"
-                  >{{ inputTypeTag(inGroup.ch.label).text }}</span
+                  :style="`background:${typeTag(inGroup.ch.label).color}`"
+                  >{{ typeTag(inGroup.ch.label).text }}</span
                 >
-                <span class="route-ch-name">{{ inGroup.ch.label }}</span>
+                <span class="route-ch-name">{{ groupLabel(inGroup) }}</span>
               </button>
             </template>
           </template>
         </q-card-section>
         <q-separator />
         <q-card-section class="route-dialog-section-label">
-          {{ stereoLabel(routeTarget.left) }} R
+          {{ groupLabel(routeTarget) }} R
         </q-card-section>
         <q-card-section class="route-dialog-body">
           <template v-for="inGroup in inputGroups" :key="'R-' + groupKey(inGroup)">
@@ -176,10 +127,10 @@ function toggleForGroup(inCh, outGroup) {
               >
                 <span
                   class="route-ch-tag"
-                  :style="`background:${inputTypeTag(inGroup.left.label).color}`"
-                  >{{ inputTypeTag(inGroup.left.label).text }}</span
+                  :style="`background:${typeTag(inGroup.left.label).color}`"
+                  >{{ typeTag(inGroup.left.label).text }}</span
                 >
-                <span class="route-ch-name">{{ routeInputLabel(inGroup) }} L</span>
+                <span class="route-ch-name">{{ groupLabel(inGroup) }} L</span>
               </button>
               <button
                 class="route-ch-btn"
@@ -190,10 +141,10 @@ function toggleForGroup(inCh, outGroup) {
               >
                 <span
                   class="route-ch-tag"
-                  :style="`background:${inputTypeTag(inGroup.right.label).color}`"
-                  >{{ inputTypeTag(inGroup.right.label).text }}</span
+                  :style="`background:${typeTag(inGroup.right.label).color}`"
+                  >{{ typeTag(inGroup.right.label).text }}</span
                 >
-                <span class="route-ch-name">{{ routeInputLabel(inGroup) }} R</span>
+                <span class="route-ch-name">{{ groupLabel(inGroup) }} R</span>
               </button>
             </template>
             <template v-else>
@@ -204,10 +155,10 @@ function toggleForGroup(inCh, outGroup) {
               >
                 <span
                   class="route-ch-tag"
-                  :style="`background:${inputTypeTag(inGroup.ch.label).color}`"
-                  >{{ inputTypeTag(inGroup.ch.label).text }}</span
+                  :style="`background:${typeTag(inGroup.ch.label).color}`"
+                  >{{ typeTag(inGroup.ch.label).text }}</span
                 >
-                <span class="route-ch-name">{{ inGroup.ch.label }}</span>
+                <span class="route-ch-name">{{ groupLabel(inGroup) }}</span>
               </button>
             </template>
           </template>
@@ -225,10 +176,10 @@ function toggleForGroup(inCh, outGroup) {
             >
               <span
                 class="route-ch-tag"
-                :style="`background:${inputTypeTag(inGroup.left.label).color}`"
-                >{{ inputTypeTag(inGroup.left.label).text }}</span
+                :style="`background:${typeTag(inGroup.left.label).color}`"
+                >{{ typeTag(inGroup.left.label).text }}</span
               >
-              <span class="route-ch-name">{{ routeInputLabel(inGroup) }} L</span>
+              <span class="route-ch-name">{{ groupLabel(inGroup) }} L</span>
             </button>
             <button
               class="route-ch-btn"
@@ -237,10 +188,10 @@ function toggleForGroup(inCh, outGroup) {
             >
               <span
                 class="route-ch-tag"
-                :style="`background:${inputTypeTag(inGroup.right.label).color}`"
-                >{{ inputTypeTag(inGroup.right.label).text }}</span
+                :style="`background:${typeTag(inGroup.right.label).color}`"
+                >{{ typeTag(inGroup.right.label).text }}</span
               >
-              <span class="route-ch-name">{{ routeInputLabel(inGroup) }} R</span>
+              <span class="route-ch-name">{{ groupLabel(inGroup) }} R</span>
             </button>
           </template>
           <template v-else>
@@ -251,10 +202,10 @@ function toggleForGroup(inCh, outGroup) {
             >
               <span
                 class="route-ch-tag"
-                :style="`background:${inputTypeTag(inGroup.ch.label).color}`"
-                >{{ inputTypeTag(inGroup.ch.label).text }}</span
+                :style="`background:${typeTag(inGroup.ch.label).color}`"
+                >{{ typeTag(inGroup.ch.label).text }}</span
               >
-              <span class="route-ch-name">{{ inGroup.ch.label }}</span>
+              <span class="route-ch-name">{{ groupLabel(inGroup) }}</span>
             </button>
           </template>
         </template>
@@ -266,8 +217,8 @@ function toggleForGroup(inCh, outGroup) {
 <style scoped>
 /* 라우팅 팝업 */
 .route-dialog {
-  min-width: 320px;
-  max-width: 500px;
+  min-width: 520px;
+  max-width: 720px;
   margin: auto;
 }
 .route-dialog-header {
@@ -292,7 +243,7 @@ function toggleForGroup(inCh, outGroup) {
 }
 .route-dialog-body {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
   padding: 14px;
 }

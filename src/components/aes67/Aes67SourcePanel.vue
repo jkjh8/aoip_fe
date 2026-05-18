@@ -25,12 +25,11 @@ const codecOptions = ['L16', 'L24', 'AM824']
 const sppOptions   = [12, 24, 48, 96, 192]
 
 const meterChannels = computed(() => {
-  const mapSet = new Set(props.source.map ?? [])
-  return aoipState.channels.inputs
-    .filter((ch) => {
-      const m = ch.port?.match(/^aes67:out_(\d+)$/)
-      return m && mapSet.has(Number(m[1]) - 1)
-    })
+  const aes67Chs = aoipState.channels.outputs
+    .filter((ch) => ch.label.toLowerCase().includes('aes67'))
+  return (props.source.map ?? [])
+    .map((idx) => aes67Chs[idx])
+    .filter(Boolean)
     .map((ch) => ({ level: ch.level, muted: ch.muted, label: ch.label }))
 })
 
@@ -154,7 +153,7 @@ function viewSdp() {
           <q-btn flat round size="md" icon="delete_outline" color="negative" @click="remove">
             <q-tooltip>삭제</q-tooltip>
           </q-btn>
-          <LevelMeter v-if="meterChannels.length" :channels="meterChannels" />
+          <LevelMeter v-if="meterChannels.length" :channels="meterChannels" :title="source.name" />
         </div>
       </div>
     </q-card-section>

@@ -34,33 +34,54 @@ export function useChannelPanel(channelType) {
     return !!(dsp?.hpf?.enabled || dsp?.eq?.some((b) => b.enabled))
   }
 
-  const channelGroups = computed(() => {
+  function getChannelType(label) {
+    const l = label.toLowerCase()
+    if (l.includes('analog')) return 'analog'
+    if (l.includes('stream')) return 'stream'
+    if (l.includes('aes67')) return 'aes67'
+    return 'other'
+  }
+
+  const SECTION_META = {
+    analog: { title: 'Analog', color: '#1976d2' },
+    stream: { title: 'Stream', color: '#e65100' },
+    aes67:  { title: 'AES67',  color: '#7b1fa2' },
+    other:  { title: 'Other',  color: '#546e7a' },
+  }
+
+  const channelSections = computed(() => {
     const chs = channels.value
-    const groups = []
-    let i = 0
-    while (i < chs.length) {
-      const ch = chs[i]
-      if (ch.label.toLowerCase().includes('analog')) {
-        groups.push({ stereo: false, ch })
-        i++
-      } else {
-        const next = chs[i + 1]
-        if (next && !next.label.toLowerCase().includes('analog')) {
-          groups.push({ stereo: true, left: ch, right: next })
-          i += 2
-        } else {
-          groups.push({ stereo: false, ch })
-          i++
+    const typeMap = { analog: [], stream: [], aes67: [], other: [] }
+    for (const ch of chs) typeMap[getChannelType(ch.label)].push(ch)
+
+    const sections = []
+    for (const type of ['analog', 'stream', 'aes67', 'other']) {
+      const typeChs = typeMap[type]
+      if (!typeChs.length) continue
+      const groups = []
+      if (type === 'stream') {
+        let i = 0
+        while (i < typeChs.length) {
+          const ch = typeChs[i]
+          const next = typeChs[i + 1]
+          if (next) { groups.push({ stereo: true, left: ch, right: next }); i += 2 }
+          else       { groups.push({ stereo: false, ch }); i++ }
         }
+      } else {
+        for (const ch of typeChs) groups.push({ stereo: false, ch })
       }
+      sections.push({ ...SECTION_META[type], groups })
     }
-    return groups
+    return sections
   })
+
+  const channelGroups = computed(() => channelSections.value.flatMap((s) => s.groups))
 
   function typeTag(label) {
     const l = label.toLowerCase()
     if (l.includes('analog')) return { text: 'ANA', color: '#1976d2' }
     if (l.includes('aes67')) return { text: 'AES', color: '#7b1fa2' }
+    if (l.includes('stream')) return { text: 'STR', color: '#e65100' }
     return { text: label.substring(0, 3).toUpperCase(), color: '#546e7a' }
   }
 
@@ -70,6 +91,17 @@ export function useChannelPanel(channelType) {
 
   function stereoLabel(left) {
     return left.label.replace(/\s*(CH\d+|[LR]|\d+)$/i, '').trim()
+  }
+
+  function groupLabel(group) {
+    if (!group.stereo) return group.ch.label
+    const l = group.left.label
+    const r = group.right.label
+    let i = 0
+    while (i < l.length && i < r.length && l[i] === r[i]) i++
+    const prefix = l.substring(0, i).trim()
+    // If prefix ends with a digit the stream number is preserved; otherwise fall back to left label
+    return /\d$/.test(prefix) ? prefix : l
   }
 
   function isMuted(group) {
@@ -168,6 +200,9 @@ export function useChannelPanel(channelType) {
   return {
     channels,
     channelGroups,
+    channelSections,
+    groupLabel,
+    getChannelType,
     inputRefs,
     dragging,
     eqOpen,

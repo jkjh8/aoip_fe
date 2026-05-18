@@ -15,7 +15,7 @@ export const socket = io(serverUrl, {
 export default defineBoot(({ app, pinia }) => {
   app.config.globalProperties.$socket = socket
 
-  const store         = useAoipStore(pinia)
+  const store = useAoipStore(pinia)
   const settingsStore = useSettingsStore(pinia)
 
   socket.on('connect', () => {

@@ -1,12 +1,17 @@
 <script setup>
+import { computed } from 'vue'
 import { useChannelPanel } from 'src/composables/useChannelPanel'
 import LevelMeter from './LevelMeter.vue'
 
+const props = defineProps({
+  sectionTitle: { type: String, default: null },
+})
+
 const {
-  channelGroups,
+  channelSections,
   groupKey,
   groupTag,
-  stereoLabel,
+  groupLabel,
   isMuted,
   doToggleMute,
   groupGain,
@@ -24,106 +29,123 @@ const {
   toDb,
   onDbClick,
 } = useChannelPanel('input')
+
+const displaySections = computed(() =>
+  props.sectionTitle
+    ? channelSections.value.filter((s) => s.title === props.sectionTitle)
+    : channelSections.value,
+)
+
+const sectionColor = computed(() => displaySections.value[0]?.color ?? '#546e7a')
 </script>
 
 <template>
-  <q-card style="background-color: #fff">
-    <q-card-section>
-      <div class="text-h6 text-weight-light">Inputs</div>
+  <q-card style="background-color: #fff; width: 100%">
+    <q-card-section class="card-header" :style="`border-top: 3px solid ${sectionColor}`">
+      <span class="card-title">{{ sectionTitle ?? 'Inputs' }}</span>
+      <span class="card-dir">Input</span>
     </q-card-section>
     <q-separator />
     <q-card-section>
-      <template v-for="group in channelGroups" :key="groupKey(group)">
-        <div class="ch-strip" :class="{ muted: isMuted(group) }">
-          <!-- 타입 태그 -->
-          <span class="ch-tag" :style="`background:${groupTag(group).color}`">
-            {{ groupTag(group).text }}
-          </span>
+      <template v-for="section in displaySections" :key="section.title">
+        <template v-for="group in section.groups" :key="groupKey(group)">
+          <div class="ch-strip" :class="{ muted: isMuted(group) }">
+            <span class="ch-tag" :style="`background:${groupTag(group).color}`">
+              {{ groupTag(group).text }}
+            </span>
+            <div class="route-spacer q-mr-md" />
 
-          <!-- 이름 + 슬라이더 (flat) -->
-          <div class="ch-main">
-            <div class="ch-info">
-              <span class="ch-name">{{
-                group.stereo ? stereoLabel(group.left) : group.ch.label
-              }}</span>
-              <span class="ch-mode" :class="group.stereo ? 'ch-mode--st' : 'ch-mode--mono'">
-                {{ group.stereo ? 'Stereo' : 'Mono' }}
-              </span>
-            </div>
-            <div class="slider-wrap">
-              <div
-                v-if="dragging[groupKey(group)] !== undefined"
-                class="slider-thumb-tip"
-                :style="{ left: thumbLeft(sliderVal(group)) }"
-              >
-                {{ fmtSlider(sliderVal(group)) }}
+            <div class="ch-main">
+              <div class="ch-info">
+                <span class="ch-name">{{ groupLabel(group) }}</span>
+                <span class="ch-mode" :class="group.stereo ? 'ch-mode--st' : 'ch-mode--mono'">
+                  {{ group.stereo ? 'Stereo' : 'Mono' }}
+                </span>
               </div>
-              <input
-                type="range"
-                :value="sliderVal(group)"
-                min="-60"
-                max="12"
-                step="0.5"
-                class="gain-slider"
-                @input="onSliderInput(group, $event.target.value)"
-                @change="onSliderChange(group, $event.target.value)"
-              />
+              <div class="slider-wrap">
+                <div
+                  v-if="dragging[groupKey(group)] !== undefined"
+                  class="slider-thumb-tip"
+                  :style="{ left: thumbLeft(sliderVal(group)) }"
+                >
+                  {{ fmtSlider(sliderVal(group)) }}
+                </div>
+                <input
+                  type="range"
+                  :value="sliderVal(group)"
+                  min="-60"
+                  max="12"
+                  step="0.5"
+                  class="gain-slider"
+                  @input="onSliderInput(group, $event.target.value)"
+                  @change="onSliderChange(group, $event.target.value)"
+                />
+              </div>
             </div>
-          </div>
 
-          <!-- 게인 숫자창 -->
-          <input
-            v-if="editingId === groupKey(group)"
-            :ref="
-              (el) => {
-                if (el) inputRefs[groupKey(group)] = el
-              }
-            "
-            v-model="editingVal"
-            class="db-input"
-            @blur="commitEdit(group)"
-            @keydown="onEditKeydown($event, group)"
-          />
-          <span v-else class="db-val" @click="onDbClick(group)">{{ toDb(groupGain(group)) }}</span>
+            <input
+              v-if="editingId === groupKey(group)"
+              :ref="(el) => { if (el) inputRefs[groupKey(group)] = el }"
+              v-model="editingVal"
+              class="db-input"
+              @blur="commitEdit(group)"
+              @keydown="onEditKeydown($event, group)"
+            />
+            <span v-else class="db-val" @click="onDbClick(group)">{{ toDb(groupGain(group)) }}</span>
 
-          <!-- 뮤트 -->
-          <q-btn
-            class="mute-btn"
-            flat
-            dense
-            size="md"
-            :icon="isMuted(group) ? 'volume_off' : 'volume_up'"
-            :color="isMuted(group) ? 'negative' : 'blue-grey-5'"
-            @click="doToggleMute(group)"
-          >
-            <q-tooltip
-              class="bg-grey-4 text-grey-9"
-              anchor="top middle"
-              self="bottom middle"
-              :offset="[0, 4]"
+            <q-btn
+              class="mute-btn"
+              flat dense size="md"
+              :icon="isMuted(group) ? 'volume_off' : 'volume_up'"
+              :color="isMuted(group) ? 'negative' : 'blue-grey-5'"
+              @click="doToggleMute(group)"
             >
-              Mute
-            </q-tooltip>
-          </q-btn>
+              <q-tooltip class="bg-grey-4 text-grey-9" anchor="top middle" self="bottom middle" :offset="[0, 4]">
+                Mute
+              </q-tooltip>
+            </q-btn>
 
-          <!-- 레벨 미터 (vertical) -->
-          <LevelMeter
-            :channels="
-              group.stereo
-                ? [
-                    { level: group.left.level, muted: isMuted(group), label: 'L' },
-                    { level: group.right.level, muted: isMuted(group), label: 'R' },
-                  ]
-                : [{ level: group.ch.level, muted: isMuted(group) }]
-            "
-          />
-        </div>
+            <LevelMeter
+              :channels="
+                group.stereo
+                  ? [
+                      { level: group.left.level, muted: isMuted(group), label: 'L' },
+                      { level: group.right.level, muted: isMuted(group), label: 'R' },
+                    ]
+                  : [{ level: group.ch.level, muted: isMuted(group) }]
+              "
+              :title="groupLabel(group)"
+            />
+          </div>
+        </template>
       </template>
     </q-card-section>
   </q-card>
-
 </template>
 
 <style scoped>
-/* InputPanel 고유 스타일 없음 — 공통 클래스는 src/css/app.scss 참조 */
+.route-spacer {
+  width: 44px;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.card-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+.card-title {
+  font-size: 15px;
+  font-weight: 500;
+}
+.card-dir {
+  font-size: 11px;
+  color: #90a4ae;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
 </style>

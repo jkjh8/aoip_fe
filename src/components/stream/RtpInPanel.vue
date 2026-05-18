@@ -2,26 +2,18 @@
 import { computed } from 'vue'
 
 const props = defineProps({
-  s:    { type: Object,  required: true },
-  detail: { type: Object,  default: () => ({}) },
+  s: { type: Object, required: true },
+  detail: { type: Object, default: () => ({}) },
   busy: { type: Boolean, default: false },
 })
-
-const emit = defineEmits(['refresh', 'edit'])
-
 const fillMs = computed(() => props.s.bufStats?.fillMs ?? props.s.stats?.bufStats?.fillMs ?? 0)
 </script>
 
 <template>
   <!-- Receive Stream stats -->
-  <div class="st-section-label">
-    Receive Stream
-    <q-btn flat dense round size="xs" icon="edit" color="grey-5" :disable="busy" class="lbl-btn" @click="emit('edit')">
-      <q-tooltip>수정{{ busy ? ' (처리중)' : '' }}</q-tooltip>
-    </q-btn>
-  </div>
+  <div class="st-section-label">Receive Stream</div>
   <div class="st-strip cs-wrap">
-    <div class="cs-full">
+    <span class="cs-item cs-w-src">
       <span class="cs-key">Src</span>
       <span class="cs-val">
         <template v-if="s.stats?.srcIp">
@@ -30,7 +22,7 @@ const fillMs = computed(() => props.s.bufStats?.fillMs ?? props.s.stats?.bufStat
         </template>
         <span v-else class="cs-muted">{{ s.ready ? 'Detecting…' : 'None' }}</span>
       </span>
-    </div>
+    </span>
     <span class="cs-item cs-w-codec">
       <span class="cs-key">Codec</span>
       <span class="cs-val" :class="s.stats?.codec && s.stats.codec !== 'unknown' ? '' : 'cs-muted'">
@@ -66,7 +58,6 @@ const fillMs = computed(() => props.s.bufStats?.fillMs ?? props.s.stats?.bufStat
       </span>
     </span>
   </div>
-
 </template>
 
 <style scoped>
@@ -81,8 +72,13 @@ const fillMs = computed(() => props.s.bufStats?.fillMs ?? props.s.stats?.bufStat
   text-transform: uppercase;
   padding: 10px 18px 5px;
 }
-.lbl-btn { margin-left: 2px; opacity: 0.6; }
-.lbl-btn:hover { opacity: 1; }
+.lbl-btn {
+  margin-left: 2px;
+  opacity: 0.6;
+}
+.lbl-btn:hover {
+  opacity: 1;
+}
 
 .st-strip {
   padding: 8px 18px 12px;
@@ -115,7 +111,6 @@ const fillMs = computed(() => props.s.bufStats?.fillMs ?? props.s.stats?.bufStat
   font-size: 11px;
   font-weight: 700;
   color: #90a4ae;
-  letter-spacing: 0.4px;
 }
 .cs-val {
   font-size: 12px;
@@ -127,15 +122,30 @@ const fillMs = computed(() => props.s.bufStats?.fillMs ?? props.s.stats?.bufStat
   font-variant-numeric: tabular-nums;
   font-family: 'Courier New', monospace;
 }
-.cs-muted { color: #b0bec5; }
-.cs-warn  { color: #e53935; font-weight: 700; }
+.cs-muted {
+  color: #b0bec5;
+}
+.cs-warn {
+  color: #e53935;
+  font-weight: 700;
+}
 
 /* ── Fixed item widths (prevents layout shift on value change) ── */
-.cs-w-codec   { min-width: 72px; }
-.cs-w-bitrate { min-width: 96px; }
-.cs-w-ms      { min-width: 66px; }
-.cs-w-pkts    { min-width: 80px; }
-.cs-w-drops   { min-width: 58px; }
+.cs-w-codec {
+  min-width: 72px;
+}
+.cs-w-bitrate {
+  min-width: 96px;
+}
+.cs-w-ms {
+  min-width: 66px;
+}
+.cs-w-pkts {
+  min-width: 80px;
+}
+.cs-w-drops {
+  min-width: 58px;
+}
 
 .ip-chip {
   background: #e8f5e9;
@@ -190,9 +200,14 @@ const fillMs = computed(() => props.s.bufStats?.fillMs ?? props.s.stats?.bufStat
   flex: 1;
   min-width: 0;
 }
-.cfg-input { width: 100%; }
+.cfg-input {
+  width: 100%;
+}
 
-.seg-group { display: flex; gap: 6px; }
+.seg-group {
+  display: flex;
+  gap: 6px;
+}
 .seg-btn {
   background: #f5f5f5;
   border: 1px solid #cfd8dc;
@@ -202,15 +217,55 @@ const fillMs = computed(() => props.s.bufStats?.fillMs ?? props.s.stats?.bufStat
   font-weight: 600;
   color: #546e7a;
   cursor: pointer;
-  transition: background 0.1s, border-color 0.1s, color 0.1s;
+  transition:
+    background 0.1s,
+    border-color 0.1s,
+    color 0.1s;
 }
-.seg-btn:hover { background: #e8f5e9; border-color: #a5d6a7; }
-.seg-btn--on { background: #2e7d32; border-color: #2e7d32; color: #fff; }
+.seg-btn:hover {
+  background: #e8f5e9;
+  border-color: #a5d6a7;
+}
+.seg-btn--on {
+  background: #2e7d32;
+  border-color: #2e7d32;
+  color: #fff;
+}
 
 /* keep info-row / info-key for any inherited usage */
-.info-grid { display: flex; flex-direction: column; gap: 6px; }
-.info-row  { display: flex; align-items: center; font-size: 13px; }
-.info-key  { font-size: 11px; font-weight: 700; color: #90a4ae; letter-spacing: 0.5px; width: 70px; flex-shrink: 0; }
-.info-val  { color: #37474f; font-weight: 500; display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
-.cfg-tag   { font-size: 10px; font-weight: 700; background: #e3f2fd; color: #1565c0; padding: 1px 6px; border-radius: 3px; letter-spacing: 0.4px; }
+.info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.info-row {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+}
+.info-key {
+  font-size: 11px;
+  font-weight: 700;
+  color: #90a4ae;
+  letter-spacing: 0.5px;
+  width: 70px;
+  flex-shrink: 0;
+}
+.info-val {
+  color: #37474f;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.cfg-tag {
+  font-size: 10px;
+  font-weight: 700;
+  background: #e3f2fd;
+  color: #1565c0;
+  padding: 1px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.4px;
+}
 </style>

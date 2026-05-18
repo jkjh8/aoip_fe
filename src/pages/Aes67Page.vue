@@ -275,93 +275,87 @@ function sdpCodec(sdp) {
 </script>
 
 <template>
-  <q-page class="row justify-start q-pa-md">
-    <div class="column q-gutter-md" style="width: 100%; max-width: 600px">
-      <!-- Daemon + PTP status header -->
-      <q-card flat style="border: 1px solid #e0e0e0">
-        <q-card-section class="q-py-sm" style="min-height: 52px; display: flex; align-items: center;">
-          <div class="row no-wrap justify-between items-center" style="width:100%">
-            <div class="row items-center q-gutter-x-sm">
-              <span class="header-title">AES67</span>
-              <q-badge
-                :color="aes67.ready ? 'positive' : aes67.running ? 'warning' : 'grey-5'"
-                outline
-              >
-                {{ aes67.ready ? 'Ready' : aes67.running ? 'Starting…' : 'Stopped' }}
-              </q-badge>
-            </div>
-          </div>
-        </q-card-section>
-        <q-separator />
-        <q-card-section class="q-py-xs q-px-md">
+  <q-page class="q-pa-md">
+
+    <!-- ─── Daemon + PTP status header ─── -->
+    <q-card flat style="border: 1px solid #e0e0e0; max-width: 1160px; margin-bottom: 16px">
+      <q-card-section class="q-py-sm" style="min-height: 52px; display: flex; align-items: center;">
+        <div class="row no-wrap justify-between items-center" style="width:100%">
           <div class="row items-center q-gutter-x-sm">
-            <q-icon
-              :name="ptpLocked ? 'gps_fixed' : 'gps_not_fixed'"
-              :color="ptpLocked ? 'positive' : 'grey-5'"
-              size="14px"
-            />
-            <span class="ptp-label" :class="ptpLocked ? 'ptp-locked' : 'ptp-unlocked'">
-              PTP {{ ptpLabel }}
-            </span>
+            <span class="header-title">AES67</span>
+            <q-badge
+              :color="aes67.ready ? 'positive' : aes67.running ? 'warning' : 'grey-5'"
+              outline
+            >
+              {{ aes67.ready ? 'Ready' : aes67.running ? 'Starting…' : 'Stopped' }}
+            </q-badge>
           </div>
-        </q-card-section>
-      </q-card>
+        </div>
+      </q-card-section>
+      <q-separator />
+      <q-card-section class="q-py-xs q-px-md">
+        <div class="row items-center q-gutter-x-sm">
+          <q-icon
+            :name="ptpLocked ? 'gps_fixed' : 'gps_not_fixed'"
+            :color="ptpLocked ? 'positive' : 'grey-5'"
+            size="14px"
+          />
+          <span class="ptp-label" :class="ptpLocked ? 'ptp-locked' : 'ptp-unlocked'">
+            PTP {{ ptpLabel }}
+          </span>
+        </div>
+      </q-card-section>
+    </q-card>
 
-      <!-- ─── Sources (Output) ─── -->
-      <div class="section-header">
-        <span class="section-title">
-          <q-icon name="upload" color="blue-7" size="16px" />
-          Sources (출력)
-        </span>
-        <q-btn
-          flat
-          dense
-          round
-          size="sm"
-          icon="add"
-          color="blue-7"
-          :disable="!aes67.ready"
-          @click="openAddSource"
-        >
-          <q-tooltip>Add Source</q-tooltip>
-        </q-btn>
-      </div>
+    <!-- ─── 입출력 컬럼 ─── -->
+    <div class="row q-gutter-md items-start">
 
-      <Aes67SourcePanel v-for="src in sources" :key="src.id" :source="src" @refresh="fetchSources" />
-      <div v-if="aes67.ready && !sources.length" class="empty-hint">
-        <q-icon name="upload" size="32px" color="blue-grey-3" />
-        <span>소스 없음</span>
-      </div>
-      <div v-if="!aes67.ready" class="empty-hint">
-        <q-icon name="power_off" size="32px" color="blue-grey-3" />
-        <span>AES67 데몬이 실행 중이 아닙니다</span>
-      </div>
-
-      <!-- ─── Sinks (Input) ─── -->
-      <div class="section-header q-mt-sm">
-        <span class="section-title">
-          <q-icon name="download" color="green-7" size="16px" />
-          Sinks (입력)
-        </span>
-        <q-btn
-          flat
-          dense
-          round
-          size="sm"
-          icon="add"
-          color="green-7"
-          :disable="!aes67.ready"
-          @click="openAddSink"
-        >
-          <q-tooltip>Add Sink</q-tooltip>
-        </q-btn>
+      <!-- Sinks (Input) -->
+      <div class="col aes67-col">
+        <div class="col-label">
+          <q-icon name="download" size="16px" color="green-7" />
+          Sinks · Input
+          <q-btn flat dense round size="sm" icon="add" color="green-7"
+            :disable="!aes67.ready" @click="openAddSink" class="q-ml-xs">
+            <q-tooltip>Add Sink</q-tooltip>
+          </q-btn>
+        </div>
+        <div class="column q-gutter-sm">
+          <Aes67SinkPanel v-for="sk in sinks" :key="sk.id" :sink="sk" @refresh="fetchSinks" />
+          <div v-if="aes67.ready && !sinks.length" class="empty-hint">
+            <q-icon name="download" size="32px" color="blue-grey-3" />
+            <span>싱크 없음</span>
+          </div>
+          <div v-if="!aes67.ready" class="empty-hint">
+            <q-icon name="power_off" size="32px" color="blue-grey-3" />
+            <span>AES67 데몬이 실행 중이 아닙니다</span>
+          </div>
+        </div>
       </div>
 
-      <Aes67SinkPanel v-for="sk in sinks" :key="sk.id" :sink="sk" @refresh="fetchSinks" />
-      <div v-if="aes67.ready && !sinks.length" class="empty-hint">
-        <q-icon name="download" size="32px" color="blue-grey-3" />
-        <span>싱크 없음</span>
+      <!-- Sources (Output) -->
+      <div class="col aes67-col">
+        <div class="col-label">
+          <q-icon name="upload" size="16px" color="blue-7" />
+          Sources · Output
+          <q-btn flat dense round size="sm" icon="add" color="blue-7"
+            :disable="!aes67.ready" @click="openAddSource" class="q-ml-xs">
+            <q-tooltip>Add Source</q-tooltip>
+          </q-btn>
+        </div>
+        <div class="column q-gutter-sm">
+          <Aes67SourcePanel v-for="src in sources" :key="src.id" :source="src" @refresh="fetchSources" />
+          <div v-if="aes67.ready && !sources.length" class="empty-hint">
+            <q-icon name="upload" size="32px" color="blue-grey-3" />
+            <span>소스 없음</span>
+          </div>
+          <div v-if="!aes67.ready" class="empty-hint">
+            <q-icon name="power_off" size="32px" color="blue-grey-3" />
+            <span>AES67 데몬이 실행 중이 아닙니다</span>
+          </div>
+        </div>
       </div>
+
     </div>
 
     <!-- ════ Add Source dialog ════ -->
@@ -633,21 +627,19 @@ function sdpCodec(sdp) {
   color: #b0bec5;
 }
 
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 0;
+.aes67-col {
+  max-width: 560px;
 }
-.section-title {
+.col-label {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
-  font-weight: 700;
-  color: #546e7a;
+  font-size: 12px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.07em;
+  color: #78909c;
+  margin-bottom: 8px;
 }
 
 .empty-hint {

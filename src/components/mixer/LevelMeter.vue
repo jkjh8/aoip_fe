@@ -7,6 +7,7 @@ const props = defineProps({
     required: true,
     // Each item: { level?: Number, muted?: Boolean, label?: String }
   },
+  title: { type: String, default: null },
 })
 
 function levelPct(level, muted) {
@@ -56,6 +57,7 @@ onUnmounted(() => peakTimers.forEach(clearTimeout))
       class="bg-grey-9"
       style="padding: 0; overflow: hidden; border-radius: 6px"
     >
+      <div v-if="title" style="padding:6px 10px 0;font-size:10px;font-weight:700;color:rgba(255,255,255,0.75);letter-spacing:0.4px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px">{{ title }}</div>
       <div style="padding:10px 10px 8px;display:flex;gap:4px;align-items:stretch">
         <!-- Vertical dB scale (0 at top, -60 at bottom), right-aligned -->
         <div style="position:relative;width:22px;height:130px;flex-shrink:0">
@@ -85,14 +87,27 @@ onUnmounted(() => peakTimers.forEach(clearTimeout))
           </div>
         </div>
       </div>
-      <!-- Level values: left-pad to align under bars (scale 22px + gap 4px) -->
-      <div style="display:flex;gap:4px;padding:0 10px 8px 36px">
+      <!-- Level values -->
+      <div style="display:flex;gap:4px;padding:0 10px 4px 36px">
         <div
           v-for="(ch, i) in channels"
           :key="i"
           style="width:18px;font-size:8px;text-align:center;color:rgba(255,255,255,0.5);font-family:monospace;white-space:nowrap;overflow:hidden"
         >
           {{ ch.muted ? 'M' : (ch.level == null || ch.level <= -100 ? '-∞' : (ch.level >= 0 ? '+' : '') + ch.level.toFixed(0)) }}
+        </div>
+      </div>
+      <!-- Channel labels -->
+      <div style="display:flex;gap:4px;padding:0 10px 8px 36px">
+        <div
+          v-for="(ch, i) in channels"
+          :key="i"
+          style="width:18px;display:flex;justify-content:center;overflow:hidden"
+        >
+          <span
+            v-if="ch.label"
+            style="font-size:8px;color:rgba(255,255,255,0.45);font-family:monospace;writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;max-height:44px;overflow:hidden;text-overflow:ellipsis"
+          >{{ ch.label }}</span>
         </div>
       </div>
     </q-tooltip>

@@ -1,22 +1,15 @@
 <script setup>
 import { computed } from 'vue'
-import { socket } from 'src/boot/socket'
-import { useQuasar } from 'quasar'
-import AddTargetDialog from './AddTargetDialog.vue'
 
 const props = defineProps({
-  s:      { type: Object,  required: true },
-  detail: { type: Object,  default: () => ({}) },
-  busy:   { type: Boolean, default: false },
+  s: { type: Object, required: true },
+  detail: { type: Object, default: () => ({}) },
+  busy: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['refresh', 'edit'])
-
-const $q = useQuasar()
-
 // ── Live stats ───────────────────────────────────────────
-const liveKbps      = computed(() => props.s?.stats?.bitrateKbps ?? 0)
-const liveBytesSent = computed(() => props.s?.stats?.bytesSent   ?? 0)
+const liveKbps = computed(() => props.s?.stats?.bitrateKbps ?? 0)
+const liveBytesSent = computed(() => props.s?.stats?.bytesSent ?? 0)
 
 function fmtBytes(n) {
   if (n >= 1e9) return (n / 1e9).toFixed(1) + ' GB'
@@ -26,8 +19,8 @@ function fmtBytes(n) {
 }
 
 // ── Format display ───────────────────────────────────────
-const curCodec    = computed(() => props.detail?.codec    ?? '—')
-const curBitrate  = computed(() => props.detail?.bitrate  ?? null)
+const curCodec = computed(() => props.detail?.codec ?? '—')
+const curBitrate = computed(() => props.detail?.bitrate ?? null)
 const curProtocol = computed(() => props.detail?.protocol ?? '—')
 
 const formatLabel = computed(() => {
@@ -35,32 +28,11 @@ const formatLabel = computed(() => {
   if (curCodec.value !== 'raw' && curBitrate.value) parts.push(`${curBitrate.value} kbps`)
   return parts.join(' · ')
 })
-
-// ── Add Target dialog ────────────────────────────────────
-function openAddTarget() {
-  $q.dialog({ component: AddTargetDialog })
-    .onOk(({ host, port }) => {
-      socket.emit('rtp:out:target:add', { client: props.s.client, host, port }, (res) => {
-        if (res?.ok) emit('refresh', props.s.client)
-      })
-    })
-}
-
-function removeTarget(host, port) {
-  socket.emit('rtp:out:target:remove', { client: props.s.client, host, port }, (res) => {
-    if (res?.ok) emit('refresh', props.s.client)
-  })
-}
 </script>
 
 <template>
   <!-- Live stats + Format compact -->
-  <div class="st-section-label">
-    Send Stream
-    <q-btn flat dense round size="xs" icon="edit" color="grey-5" :disable="busy" class="lbl-btn" @click="emit('edit')">
-      <q-tooltip>수정{{ busy ? ' (처리중)' : '' }}</q-tooltip>
-    </q-btn>
-  </div>
+  <div class="st-section-label">Send Stream</div>
   <div class="st-strip cs-wrap">
     <span class="cs-item cs-w-bitrate">
       <span class="cs-key">Bitrate</span>
@@ -83,36 +55,6 @@ function removeTarget(host, port) {
       <span class="cs-val">{{ formatLabel }}</span>
     </span>
   </div>
-
-  <q-separator />
-
-  <!-- UDP Targets -->
-  <div class="st-section-label">
-    UDP Targets
-    <q-btn flat dense round size="xs" icon="add" color="blue-7" class="add-btn" @click="openAddTarget">
-      <q-tooltip class="bg-grey-4 text-grey-9" anchor="top middle" self="bottom middle" :offset="[0,4]">
-        Add Target
-      </q-tooltip>
-    </q-btn>
-  </div>
-  <div class="st-strip">
-    <div class="target-list">
-      <div
-        v-for="t in (detail?.targets ?? [])"
-        :key="`${t.host}:${t.port}`"
-        class="target-card"
-      >
-        <q-icon name="wifi_tethering" size="13px" color="blue-7" />
-        <span class="target-addr">{{ t.host }}</span>
-        <span class="target-colon">:</span>
-        <span class="target-port">{{ t.port }}</span>
-        <button class="target-remove" @click="removeTarget(t.host, t.port)">
-          <q-icon name="close" size="11px" />
-        </button>
-      </div>
-      <span v-if="!detail?.targets?.length" class="empty-hint">None</span>
-    </div>
-  </div>
 </template>
 
 <style scoped>
@@ -127,34 +69,76 @@ function removeTarget(host, port) {
   text-transform: uppercase;
   padding: 10px 18px 5px;
 }
-.lbl-btn { margin-left: 2px; opacity: 0.6; }
-.lbl-btn:hover { opacity: 1; }
-.add-btn { margin-left: auto; }
+.lbl-btn {
+  margin-left: 2px;
+  opacity: 0.6;
+}
+.lbl-btn:hover {
+  opacity: 1;
+}
+.add-btn {
+  margin-left: auto;
+}
 
 .st-strip {
   padding: 8px 18px 12px;
 }
 
 /* ── Compact inline stats ── */
-.cs-wrap  { display: flex; flex-wrap: wrap; gap: 5px 18px; align-items: center; }
-.cs-item  { display: flex; gap: 4px; align-items: center; white-space: nowrap; }
-.cs-key   { font-size: 11px; font-weight: 700; color: #90a4ae; letter-spacing: 0.4px; }
-.cs-val   {
-  font-size: 12px; font-weight: 500; color: #37474f;
+.cs-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 18px;
+  align-items: center;
+}
+.cs-item {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  white-space: nowrap;
+}
+.cs-key {
+  font-size: 11px;
+  font-weight: 700;
+  color: #90a4ae;
+  letter-spacing: 0.4px;
+}
+.cs-val {
+  font-size: 12px;
+  font-weight: 500;
+  color: #37474f;
   font-variant-numeric: tabular-nums;
   font-family: 'Courier New', monospace;
 }
-.cs-active { color: #1565c0; font-weight: 600; }
-.cs-muted  { color: #b0bec5; }
+.cs-active {
+  color: #1565c0;
+  font-weight: 600;
+}
+.cs-muted {
+  color: #b0bec5;
+}
 
 /* ── Fixed item widths ── */
-.cs-w-bitrate { min-width: 96px; }
-.cs-w-sent    { min-width: 80px; }
-.cs-w-proto   { min-width: 68px; }
-.cs-w-codec   { min-width: 100px; }
+.cs-w-bitrate {
+  min-width: 96px;
+}
+.cs-w-sent {
+  min-width: 80px;
+}
+.cs-w-proto {
+  min-width: 68px;
+}
+.cs-w-codec {
+  min-width: 100px;
+}
 
 /* ── Target list ── */
-.target-list { display: flex; flex-direction: column; gap: 5px; min-height: 28px; }
+.target-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 28px;
+}
 .target-card {
   display: flex;
   align-items: center;
@@ -164,14 +148,36 @@ function removeTarget(host, port) {
   border-radius: 4px;
   padding: 7px 10px;
 }
-.target-addr  { font-weight: 600; color: #1565c0; font-size: 13px; }
-.target-colon { color: #90a4ae; font-size: 13px; }
-.target-port  { font-weight: 700; color: #1565c0; font-size: 13px; font-family: 'Courier New', monospace; }
-.target-remove {
-  background: none; border: none; cursor: pointer;
-  padding: 0 0 0 4px; color: #b0bec5;
-  display: flex; align-items: center; margin-left: auto;
+.target-addr {
+  font-weight: 600;
+  color: #1565c0;
+  font-size: 13px;
 }
-.target-remove:hover { color: #e53935; }
-.empty-hint { font-size: 13px; color: #cfd8dc; }
+.target-colon {
+  color: #90a4ae;
+  font-size: 13px;
+}
+.target-port {
+  font-weight: 700;
+  color: #1565c0;
+  font-size: 13px;
+  font-family: 'Courier New', monospace;
+}
+.target-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 0 0 4px;
+  color: #b0bec5;
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+.target-remove:hover {
+  color: #e53935;
+}
+.empty-hint {
+  font-size: 13px;
+  color: #cfd8dc;
+}
 </style>
