@@ -166,22 +166,20 @@ async function applyRtpOut({ protocol, codec, bitrate, sampleRate, channels, hos
         </div>
         <!-- Right: level meter + edit + delete + play/stop -->
         <div class="row items-center no-wrap">
-          <q-btn flat round size="sm" icon="edit" color="grey-6" :disable="busy" @click="openEdit">
+          <q-icon style="cursor: pointer" size="sm" name="edit" color="primary" @click="openEdit">
             <q-tooltip>설정 수정</q-tooltip>
-          </q-btn>
-          <q-btn
-            flat
-            round
-            size="md"
-            :icon="s.running ? 'stop_circle' : 'play_circle'"
-            :color="s.running ? 'negative' : 'positive'"
-            :loading="busy"
+          </q-icon>
+          <q-icon
+            style="cursor: pointer"
+            size="sm"
+            name="delete_outline"
+            color="negative"
             @click="toggleStream"
           >
-            <q-tooltip>{{ s.running ? 'Stop' : 'Start' }}</q-tooltip>
-          </q-btn>
+            <q-tooltip>STOP</q-tooltip>
+          </q-icon>
           <LevelMeter
-            class="q-ml-sm"
+            style="height: 40px; margin-left: 1rem"
             v-if="displayMeterChannels.length"
             :channels="displayMeterChannels"
             :title="detail?.name ?? s.client"

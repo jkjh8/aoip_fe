@@ -57,7 +57,7 @@ const srcForm = ref({
   address: '239.69.0.1',
   codec: 'L24',
   spp: 48,
-  channels: 2,
+  chUnit: 2,
   chStart: 0,
   ttl: 15,
 })
@@ -65,14 +65,79 @@ const srcForm = ref({
 const srcCodecOptions = ['L16', 'L24', 'AM824']
 const srcSppOptions = [12, 24, 48, 96, 192]
 
+const chUnitOptions = [{ label: '2ch', value: 2 }, { label: '8ch', value: 8 }]
+
+const delayOptions = [
+  { label: '192 – 4ms@48kHz',  value: 192 },
+  { label: '384 – 8ms@48kHz',  value: 384 },
+  { label: '576 – 12ms@48kHz', value: 576 },
+  { label: '768 – 16ms@48kHz', value: 768 },
+  { label: '960 – 20ms@48kHz', value: 960 },
+]
+
+function usedSinkSlots() {
+  const used = new Set()
+  for (const s of aoipState.aes67Sinks) {
+    for (const idx of (s.map ?? [])) used.add(idx)
+  }
+  return used
+}
+
+function usedSourceSlots() {
+  const used = new Set()
+  for (const s of aoipState.aes67Sources) {
+    for (const idx of (s.map ?? [])) used.add(idx)
+  }
+  return used
+}
+
+function sinkChSlotOptions(unit) {
+  const used = usedSinkSlots()
+  const slots = []
+  for (let i = 0; i < 16; i += unit) {
+    const inUse = Array.from({ length: unit }, (_, j) => i + j).some((idx) => used.has(idx))
+    slots.push({ label: `Ch ${i + 1}–${i + unit}`, value: i, disable: inUse })
+  }
+  return slots
+}
+
+function srcChSlotOptions(unit) {
+  const used = usedSourceSlots()
+  const slots = []
+  for (let i = 0; i < 16; i += unit) {
+    const inUse = Array.from({ length: unit }, (_, j) => i + j).some((idx) => used.has(idx))
+    slots.push({ label: `Ch ${i + 1}–${i + unit}`, value: i, disable: inUse })
+  }
+  return slots
+}
+
+function firstAvailableSinkSlot(unit) {
+  const used = usedSinkSlots()
+  for (let i = 0; i < 16; i += unit) {
+    const inUse = Array.from({ length: unit }, (_, j) => i + j).some((idx) => used.has(idx))
+    if (!inUse) return i
+  }
+  return 0
+}
+
+function firstAvailableSourceSlot(unit) {
+  const used = usedSourceSlots()
+  for (let i = 0; i < 16; i += unit) {
+    const inUse = Array.from({ length: unit }, (_, j) => i + j).some((idx) => used.has(idx))
+    if (!inUse) return i
+  }
+  return 0
+}
+
 function openAddSource() {
+  const chUnit = 2
   srcForm.value = {
     name: '',
     address: '239.69.0.1',
     codec: 'L24',
     spp: 48,
-    channels: 2,
-    chStart: 0,
+    chUnit,
+    chStart: firstAvailableSourceSlot(chUnit),
     ttl: 15,
   }
   srcError.value = ''
@@ -90,7 +155,7 @@ function confirmAddSource() {
     return
   }
 
-  const map = Array.from({ length: f.channels }, (_, i) => f.chStart + i)
+  const map = Array.from({ length: f.chUnit }, (_, i) => f.chStart + i)
 
   const addrConflict = sources.value.find((s) => s.address === f.address.trim())
   if (addrConflict) {
@@ -148,19 +213,20 @@ const sinkForm = ref({
   rawSdp: '',
   delay: 192,
   ignoreRefclk: true,
-  channels: 2,
+  chUnit: 2,
   chStart: 0,
 })
 
 function openAddSink() {
+  const chUnit = 2
   sinkForm.value = {
     name: '',
     url: '',
     rawSdp: '',
     delay: 192,
     ignoreRefclk: true,
-    channels: 2,
-    chStart: 0,
+    chUnit,
+    chStart: firstAvailableSinkSlot(chUnit),
   }
   sinkError.value = ''
   selectedRemote.value = null
@@ -181,10 +247,12 @@ function doBrowse() {
 function selectRemote(src) {
   selectedRemote.value = src
   if (!sinkForm.value.name) sinkForm.value.name = src.name
-
-  // SDP에서 채널 수 자동 감지
   const m = (src.sdp ?? '').match(/a=rtpmap:\d+\s+\S+\/\d+\/(\d+)/)
-  if (m) sinkForm.value.channels = Number(m[1])
+  if (m) {
+    const chUnit = Number(m[1]) >= 8 ? 8 : 2
+    sinkForm.value.chUnit = chUnit
+    sinkForm.value.chStart = firstAvailableSinkSlot(chUnit)
+  }
 }
 
 function confirmAddSink() {
@@ -203,7 +271,7 @@ function confirmAddSink() {
     return
   }
 
-  const map = Array.from({ length: f.channels }, (_, i) => f.chStart + i)
+  const map = Array.from({ length: f.chUnit }, (_, i) => f.chStart + i)
   const mapSet = new Set(map)
   const chConflict = sinks.value.find((s) => (s.map ?? []).some((ch) => mapSet.has(ch)))
   if (chConflict) {
@@ -414,25 +482,21 @@ function sdpCodec(sdp) {
 
           <div class="dlg-row">
             <div class="field-group" style="flex: 1">
-              <label class="field-label">채널 수</label>
-              <q-input
-                v-model.number="srcForm.channels"
-                dense
-                outlined
-                type="number"
-                :min="1"
-                :max="8"
+              <label class="field-label">채널 단위</label>
+              <q-select
+                v-model="srcForm.chUnit"
+                :options="chUnitOptions"
+                emit-value map-options dense outlined
+                @update:model-value="(val) => { srcForm.chStart = firstAvailableSourceSlot(val) }"
               />
             </div>
-            <div class="field-group" style="flex: 1">
-              <label class="field-label">시작 채널 (0-based)</label>
-              <q-input
-                v-model.number="srcForm.chStart"
-                dense
-                outlined
-                type="number"
-                :min="0"
-                :max="7"
+            <div class="field-group" style="flex: 2">
+              <label class="field-label">채널 슬롯</label>
+              <q-select
+                v-model="srcForm.chStart"
+                :options="srcChSlotOptions(srcForm.chUnit)"
+                emit-value map-options dense outlined
+                option-disable="disable"
               />
             </div>
           </div>
@@ -558,28 +622,24 @@ function sdpCodec(sdp) {
           <div class="dlg-row">
             <div class="field-group" style="flex: 1">
               <label class="field-label">Delay (samples)</label>
-              <q-input v-model.number="sinkForm.delay" dense outlined type="number" :min="0" />
+              <q-select v-model="sinkForm.delay" :options="delayOptions" emit-value map-options dense outlined />
             </div>
             <div class="field-group" style="flex: 1">
-              <label class="field-label">채널 수</label>
-              <q-input
-                v-model.number="sinkForm.channels"
-                dense
-                outlined
-                type="number"
-                :min="1"
-                :max="8"
+              <label class="field-label">채널 단위</label>
+              <q-select
+                v-model="sinkForm.chUnit"
+                :options="chUnitOptions"
+                emit-value map-options dense outlined
+                @update:model-value="(val) => { sinkForm.chStart = firstAvailableSinkSlot(val) }"
               />
             </div>
-            <div class="field-group" style="flex: 1">
-              <label class="field-label">시작 채널</label>
-              <q-input
-                v-model.number="sinkForm.chStart"
-                dense
-                outlined
-                type="number"
-                :min="0"
-                :max="7"
+            <div class="field-group" style="flex: 2">
+              <label class="field-label">채널 슬롯</label>
+              <q-select
+                v-model="sinkForm.chStart"
+                :options="sinkChSlotOptions(sinkForm.chUnit)"
+                emit-value map-options dense outlined
+                option-disable="disable"
               />
             </div>
           </div>

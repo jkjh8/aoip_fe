@@ -22,8 +22,18 @@ const inCodec      = ref('mp3')
 const inSampleRate = ref(48000)
 const inBitDepth   = ref(16)
 
-const sampleRateOptions = [44100, 48000]
-const bitDepthOptions   = [16, 24]
+const sampleRateOptions = [{ label: '44.1k', value: 44100 }, { label: '48k', value: 48000 }]
+const bitDepthOptions   = [{ label: '16-bit', value: 16 }, { label: '24-bit', value: 24 }]
+const channelOptions    = [{ label: 'Mono', value: 1 }, { label: 'Stereo', value: 2 }]
+const inProtocolOptions = [{ label: 'RTP', value: 'rtp' }, { label: 'UDP Raw', value: 'raw' }]
+const outProtocolOptions= [{ label: 'RTP', value: 'rtp' }, { label: 'UDP Raw', value: 'udp' }]
+const formatOptions     = [{ label: 'Auto Detect', value: 'auto' }, { label: 'Manual', value: 'manual' }]
+const inCodecOptions    = [{ label: 'MP3', value: 'mp3' }, { label: 'Opus', value: 'opus' }, { label: 'WAV', value: 'wav' }]
+const outCodecOptions   = [{ label: 'MP3', value: 'mp3' }, { label: 'Opus', value: 'opus' }, { label: 'RAW PCM', value: 'raw' }]
+
+const outBitrateOptions = computed(() =>
+  (bitrateOptions[outCodec.value] ?? []).map((v) => ({ label: `${v}k`, value: v })),
+)
 
 const showBitDepth = computed(
   () => inFormatMode.value === 'manual' && inCodec.value === 'wav',
@@ -130,20 +140,14 @@ function onOk() {
         <!-- Channels -->
         <div>
           <div class="field-label">Channels</div>
-          <div class="seg-group">
-            <button class="seg-btn" :class="{ 'seg-btn--on': channels === 1 }" @click="channels = 1">Mono</button>
-            <button class="seg-btn" :class="{ 'seg-btn--on': channels === 2 }" @click="channels = 2">Stereo</button>
-          </div>
+          <q-select v-model="channels" :options="channelOptions" emit-value map-options dense outlined />
         </div>
 
         <!-- ─── rtp_in 전용 ─── -->
         <template v-if="type === 'rtp_in'">
           <div>
             <div class="field-label">Protocol</div>
-            <div class="seg-group">
-              <button class="seg-btn" :class="{ 'seg-btn--on': inProtocol === 'rtp' }" @click="inProtocol = 'rtp'">RTP</button>
-              <button class="seg-btn" :class="{ 'seg-btn--on': inProtocol === 'raw' }" @click="inProtocol = 'raw'">UDP Raw</button>
-            </div>
+            <q-select v-model="inProtocol" :options="inProtocolOptions" emit-value map-options dense outlined />
           </div>
 
           <div>
@@ -163,44 +167,21 @@ function onOk() {
 
           <div>
             <div class="field-label">Format</div>
-            <div class="seg-group">
-              <button class="seg-btn" :class="{ 'seg-btn--on': inFormatMode === 'auto' }"   @click="inFormatMode = 'auto'">Auto Detect</button>
-              <button class="seg-btn" :class="{ 'seg-btn--on': inFormatMode === 'manual' }" @click="inFormatMode = 'manual'">Manual</button>
-            </div>
+            <q-select v-model="inFormatMode" :options="formatOptions" emit-value map-options dense outlined />
             <transition name="fade">
               <div v-if="inFormatMode === 'manual'" class="manual-box q-mt-sm q-gutter-y-sm">
                 <div>
                   <div class="field-label-sub">Codec</div>
-                  <div class="seg-group">
-                    <button class="seg-btn seg-btn--sm" :class="{ 'seg-btn--on': inCodec === 'mp3' }"  @click="inCodec = 'mp3'">MP3</button>
-                    <button class="seg-btn seg-btn--sm" :class="{ 'seg-btn--on': inCodec === 'opus' }" @click="inCodec = 'opus'">Opus</button>
-                    <button class="seg-btn seg-btn--sm" :class="{ 'seg-btn--on': inCodec === 'wav' }"  @click="inCodec = 'wav'">WAV</button>
-                  </div>
+                  <q-select v-model="inCodec" :options="inCodecOptions" emit-value map-options dense outlined />
                 </div>
                 <div>
                   <div class="field-label-sub">Sample Rate</div>
-                  <div class="seg-group">
-                    <button
-                      v-for="sr in sampleRateOptions"
-                      :key="sr"
-                      class="seg-btn seg-btn--sm"
-                      :class="{ 'seg-btn--on': inSampleRate === sr }"
-                      @click="inSampleRate = sr"
-                    >{{ sr / 1000 }}k</button>
-                  </div>
+                  <q-select v-model="inSampleRate" :options="sampleRateOptions" emit-value map-options dense outlined />
                 </div>
                 <transition name="fade">
                   <div v-if="showBitDepth">
                     <div class="field-label-sub">Bit Depth</div>
-                    <div class="seg-group">
-                      <button
-                        v-for="bd in bitDepthOptions"
-                        :key="bd"
-                        class="seg-btn seg-btn--sm"
-                        :class="{ 'seg-btn--on': inBitDepth === bd }"
-                        @click="inBitDepth = bd"
-                      >{{ bd }}-bit</button>
-                    </div>
+                    <q-select v-model="inBitDepth" :options="bitDepthOptions" emit-value map-options dense outlined />
                   </div>
                 </transition>
               </div>
@@ -212,47 +193,29 @@ function onOk() {
         <template v-else>
           <div>
             <div class="field-label">Protocol</div>
-            <div class="seg-group">
-              <button class="seg-btn" :class="{ 'seg-btn--on': outProtocol === 'rtp' }" @click="outProtocol = 'rtp'">RTP</button>
-              <button class="seg-btn" :class="{ 'seg-btn--on': outProtocol === 'udp' }" @click="outProtocol = 'udp'">UDP Raw</button>
-            </div>
+            <q-select v-model="outProtocol" :options="outProtocolOptions" emit-value map-options dense outlined />
           </div>
 
           <div>
             <div class="field-label">Codec</div>
-            <div class="seg-group">
-              <button class="seg-btn" :class="{ 'seg-btn--on': outCodec === 'mp3' }"  @click="onOutCodecChange('mp3')">MP3</button>
-              <button class="seg-btn" :class="{ 'seg-btn--on': outCodec === 'opus' }" @click="onOutCodecChange('opus')">Opus</button>
-              <button class="seg-btn" :class="{ 'seg-btn--on': outCodec === 'raw' }"  @click="onOutCodecChange('raw')">RAW PCM</button>
-            </div>
+            <q-select
+              :model-value="outCodec"
+              :options="outCodecOptions"
+              emit-value map-options dense outlined
+              @update:model-value="onOutCodecChange"
+            />
           </div>
 
           <transition name="fade">
             <div v-if="showBitrate">
               <div class="field-label">Bitrate</div>
-              <div class="seg-group seg-group--wrap">
-                <button
-                  v-for="br in (bitrateOptions[outCodec] ?? [])"
-                  :key="br"
-                  class="seg-btn seg-btn--sm"
-                  :class="{ 'seg-btn--on': outBitrate === br }"
-                  @click="outBitrate = br"
-                >{{ br }}k</button>
-              </div>
+              <q-select v-model="outBitrate" :options="outBitrateOptions" emit-value map-options dense outlined />
             </div>
           </transition>
 
           <div>
             <div class="field-label">Sample Rate</div>
-            <div class="seg-group">
-              <button
-                v-for="sr in sampleRateOptions"
-                :key="sr"
-                class="seg-btn seg-btn--sm"
-                :class="{ 'seg-btn--on': outSampleRate === sr }"
-                @click="outSampleRate = sr"
-              >{{ sr >= 1000 ? (sr / 1000) + 'k' : sr }}</button>
-            </div>
+            <q-select v-model="outSampleRate" :options="sampleRateOptions" emit-value map-options dense outlined />
           </div>
 
           <div>

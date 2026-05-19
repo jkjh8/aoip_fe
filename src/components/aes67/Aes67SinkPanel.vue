@@ -65,10 +65,15 @@ function remove() {
           </q-badge>
         </div>
         <div class="row items-center">
-          <q-btn flat round size="md" icon="delete_outline" color="negative" @click="remove">
+          <q-icon size="sm" name="delete_outline" color="negative" @click="remove">
             <q-tooltip>삭제</q-tooltip>
-          </q-btn>
-          <LevelMeter v-if="meterChannels.length" :channels="meterChannels" :title="sink.name" />
+          </q-icon>
+          <LevelMeter
+            style="height: 40px; margin-left: 1rem"
+            v-if="meterChannels.length"
+            :channels="meterChannels"
+            :title="sink.name"
+          />
         </div>
       </div>
     </q-card-section>

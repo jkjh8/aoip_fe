@@ -7,7 +7,11 @@ import RoutingDialog from './RoutingDialog.vue'
 
 const props = defineProps({
   sectionTitle: { type: String, default: null },
+  allStreams: { type: Array, default: () => [] },
+  streamDetails: { type: Object, default: () => ({}) },
 })
+
+const emit = defineEmits(['activate-stream', 'remove-stream', 'edit-stream', 'stop-stream'])
 
 const aoipState = useAoipStore()
 
@@ -85,6 +89,47 @@ function hasConnected(outGroup) {
     <q-card-section class="card-header" :style="`border-top: 3px solid ${sectionColor}`">
       <span class="card-title">{{ sectionTitle ?? 'Outputs' }}</span>
       <span class="card-dir">Output</span>
+      <q-btn v-if="sectionTitle === 'Stream'" flat dense round size="xs" icon="add" color="blue-7" class="q-ml-auto">
+        <q-tooltip>스트림 관리</q-tooltip>
+        <q-menu>
+          <q-list style="min-width: 260px">
+            <q-item-label header class="text-caption q-py-xs">Output 스트림</q-item-label>
+            <template v-if="allStreams.length">
+              <q-item v-for="s in allStreams" :key="s.client" dense>
+                <q-item-section avatar style="min-width:24px; padding-right:0">
+                  <q-badge :color="s.running ? 'positive' : 'grey-5'" rounded />
+                </q-item-section>
+                <q-item-section>{{ streamDetails[s.client]?.name ?? s.client }}</q-item-section>
+                <q-item-section side>
+                  <div class="row no-wrap">
+                    <q-btn v-if="!s.running" flat round dense size="xs" icon="play_circle" color="positive"
+                      v-close-popup @click="emit('activate-stream', s)">
+                      <q-tooltip>시작</q-tooltip>
+                    </q-btn>
+                    <template v-else>
+                      <q-btn flat round dense size="xs" icon="edit" color="grey-6"
+                        v-close-popup @click="emit('edit-stream', s)">
+                        <q-tooltip>설정 수정</q-tooltip>
+                      </q-btn>
+                      <q-btn flat round dense size="xs" icon="stop_circle" color="negative"
+                        v-close-popup @click="emit('stop-stream', s)">
+                        <q-tooltip>중지</q-tooltip>
+                      </q-btn>
+                    </template>
+                    <q-btn flat round dense size="xs" icon="delete_outline" color="grey-5"
+                      v-close-popup @click.stop="emit('remove-stream', s.client)">
+                      <q-tooltip>삭제</q-tooltip>
+                    </q-btn>
+                  </div>
+                </q-item-section>
+              </q-item>
+            </template>
+            <q-item v-else disable dense>
+              <q-item-section class="text-grey-5 text-caption">스트림 없음</q-item-section>
+            </q-item>
+          </q-list>
+        </q-menu>
+      </q-btn>
     </q-card-section>
     <q-separator />
     <q-card-section>
@@ -165,7 +210,6 @@ function hasConnected(outGroup) {
                 Mute
               </q-tooltip>
             </q-btn>
-
             <LevelMeter
               :channels="
                 group.stereo
@@ -189,7 +233,7 @@ function hasConnected(outGroup) {
 <style scoped>
 .card-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
   padding-top: 10px;
   padding-bottom: 10px;
@@ -204,6 +248,14 @@ function hasConnected(outGroup) {
   font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+}
+.strip-actions {
+  display: flex;
+  gap: 2px;
+}
+.stream-list-row {
+  display: flex;
+  align-items: center;
 }
 
 .route-btn {
@@ -221,14 +273,23 @@ function hasConnected(outGroup) {
   gap: 3px;
   color: #546e7a;
   padding: 4px;
+  opacity: 0;
+  overflow: hidden;
 }
-.route-btn:hover {
-  background: #eceff1;
-  border-color: #78909c;
+.route-btn--active {
+  opacity: 1;
 }
 .route-btn--active {
   border-color: #90caf9;
   background: #e3f2fd;
+}
+.item-action {
+  opacity: 0;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+.ch-strip:hover .item-action {
+  opacity: 1;
 }
 
 .route-dots {

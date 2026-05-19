@@ -12,21 +12,35 @@ const emit = defineEmits(['refresh'])
 
 const aoipState = useAoipStore()
 
-const busy    = ref(false)
+const busy = ref(false)
 const showSdp = ref(false)
 const sdpText = ref('')
 
-const showEdit  = ref(false)
-const editBusy  = ref(false)
+const showEdit = ref(false)
+const editBusy = ref(false)
 const editError = ref('')
-const editForm  = ref({})
+const editForm = ref({})
 
 const codecOptions = ['L16', 'L24', 'AM824']
-const sppOptions   = [12, 24, 48, 96, 192]
+const sppOptions = [12, 24, 48, 96, 192]
+
+const chUnitOptions = [
+  { label: '2ch', value: 2 },
+  { label: '8ch', value: 8 },
+]
+
+function chSlotOptions(unit) {
+  const slots = []
+  for (let i = 0; i < 16; i += unit) {
+    slots.push({ label: `Ch ${i + 1}–${i + unit}`, value: i })
+  }
+  return slots
+}
 
 const meterChannels = computed(() => {
-  const aes67Chs = aoipState.channels.outputs
-    .filter((ch) => ch.label.toLowerCase().includes('aes67'))
+  const aes67Chs = aoipState.channels.outputs.filter((ch) =>
+    ch.label.toLowerCase().includes('aes67'),
+  )
   return (props.source.map ?? [])
     .map((idx) => aes67Chs[idx])
     .filter(Boolean)
@@ -56,14 +70,15 @@ function patch(fields) {
 }
 
 function openEdit() {
+  const mapLen = props.source.map?.length ?? 2
   editForm.value = {
-    name:                   props.source.name,
-    address:                props.source.address,
-    codec:                  props.source.codec,
+    name: props.source.name,
+    address: props.source.address,
+    codec: props.source.codec,
     max_samples_per_packet: props.source.max_samples_per_packet,
-    channels:               props.source.map?.length ?? 2,
-    chStart:                props.source.map?.[0] ?? 0,
-    ttl:                    props.source.ttl ?? 15,
+    chUnit: mapLen >= 8 ? 8 : 2,
+    chStart: props.source.map?.[0] ?? 0,
+    ttl: props.source.ttl ?? 15,
   }
   editError.value = ''
   showEdit.value = true
@@ -71,10 +86,16 @@ function openEdit() {
 
 function confirmEdit() {
   const f = editForm.value
-  if (!f.name.trim()) { editError.value = '이름을 입력하세요'; return }
-  if (!f.address.trim()) { editError.value = '주소를 입력하세요'; return }
+  if (!f.name.trim()) {
+    editError.value = '이름을 입력하세요'
+    return
+  }
+  if (!f.address.trim()) {
+    editError.value = '주소를 입력하세요'
+    return
+  }
 
-  const map = Array.from({ length: f.channels }, (_, i) => f.chStart + i)
+  const map = Array.from({ length: f.chUnit }, (_, i) => f.chStart + i)
   const others = aoipState.aes67Sources.filter((s) => s.id !== props.source.id)
 
   const addrConflict = others.find((s) => s.address === f.address.trim())
@@ -85,7 +106,10 @@ function confirmEdit() {
   const mapSet = new Set(map)
   const chConflict = others.find((s) => (s.map ?? []).some((ch) => mapSet.has(ch)))
   if (chConflict) {
-    const used = chConflict.map.filter((ch) => mapSet.has(ch)).map((ch) => `Ch ${ch + 1}`).join(', ')
+    const used = chConflict.map
+      .filter((ch) => mapSet.has(ch))
+      .map((ch) => `Ch ${ch + 1}`)
+      .join(', ')
     editError.value = `채널이 "${chConflict.name}"과 겹칩니다 (${used})`
     return
   }
@@ -93,20 +117,24 @@ function confirmEdit() {
   editBusy.value = true
   editError.value = ''
   const { id } = props.source
-  socket.emit('aes67:source:add', {
-    ...props.source,
-    id,
-    name:                   f.name.trim(),
-    address:                f.address.trim(),
-    codec:                  f.codec,
-    max_samples_per_packet: f.max_samples_per_packet,
-    ttl:                    f.ttl,
-    map,
-  }, (res) => {
-    editBusy.value = false
-    if (res?.ok) showEdit.value = false
-    else editError.value = res?.error ?? 'Failed'
-  })
+  socket.emit(
+    'aes67:source:add',
+    {
+      ...props.source,
+      id,
+      name: f.name.trim(),
+      address: f.address.trim(),
+      codec: f.codec,
+      max_samples_per_packet: f.max_samples_per_packet,
+      ttl: f.ttl,
+      map,
+    },
+    (res) => {
+      editBusy.value = false
+      if (res?.ok) showEdit.value = false
+      else editError.value = res?.error ?? 'Failed'
+    },
+  )
 }
 
 function remove() {
@@ -117,7 +145,9 @@ function remove() {
 function viewSdp() {
   socket.emit('aes67:source:sdp', { id: props.source.id }, (res) => {
     sdpText.value = res?.ok
-      ? (typeof res.sdp === 'string' ? res.sdp : JSON.stringify(res.sdp, null, 2))
+      ? typeof res.sdp === 'string'
+        ? res.sdp
+        : JSON.stringify(res.sdp, null, 2)
       : `Error: ${res?.error ?? 'unknown'}`
     showSdp.value = true
   })
@@ -130,30 +160,37 @@ function viewSdp() {
     <q-card-section class="q-py-sm">
       <div class="row no-wrap justify-between items-center q-gutter-x-sm">
         <div class="q-gutter-x-sm">
-          <q-icon name="upload" size="md" color="blue-7" />
+          <q-icon name="upload" size="sm" color="blue-7" />
           <span class="item-title">{{ source.name }}</span>
           <q-badge outline :color="source.enabled ? 'positive' : 'grey-5'">
             {{ source.enabled ? 'ON' : 'OFF' }}
           </q-badge>
         </div>
         <div class="row items-center">
-          <q-btn flat round size="md" icon="data_object" color="grey-6" @click="viewSdp">
+          <q-icon size="sm" name="data_object" color="grey-6" @click="viewSdp">
             <q-tooltip>SDP 보기</q-tooltip>
-          </q-btn>
-          <q-btn flat round size="md" icon="edit" color="grey-6" @click="openEdit">
+          </q-icon>
+          <q-icon size="sm" name="edit" color="grey-6" @click="openEdit">
             <q-tooltip>수정</q-tooltip>
-          </q-btn>
-          <q-btn flat round size="md"
-            :icon="source.enabled ? 'pause_circle' : 'play_circle'"
+          </q-icon>
+          <q-icon
+            size="sm"
+            :name="source.enabled ? 'pause_circle' : 'play_circle'"
             :color="source.enabled ? 'orange-7' : 'positive'"
             :loading="busy"
-            @click="patch({ enabled: !source.enabled })">
+            @click="patch({ enabled: !source.enabled })"
+          >
             <q-tooltip>{{ source.enabled ? 'Disable' : 'Enable' }}</q-tooltip>
-          </q-btn>
-          <q-btn flat round size="md" icon="delete_outline" color="negative" @click="remove">
+          </q-icon>
+          <q-icon size="sm" name="delete_outline" color="negative" @click="remove">
             <q-tooltip>삭제</q-tooltip>
-          </q-btn>
-          <LevelMeter v-if="meterChannels.length" :channels="meterChannels" :title="source.name" />
+          </q-icon>
+          <LevelMeter
+            style="height: 40px; margin-left: 1rem"
+            v-if="meterChannels.length"
+            :channels="meterChannels"
+            :title="source.name"
+          />
         </div>
       </div>
     </q-card-section>
@@ -172,7 +209,10 @@ function viewSdp() {
         </span>
         <span class="cs-item">
           <span class="cs-key">Pkt</span>
-          <span class="cs-val">{{ source.max_samples_per_packet }}<span class="cs-sub"> ({{ sppMs(source.max_samples_per_packet) }})</span></span>
+          <span class="cs-val"
+            >{{ source.max_samples_per_packet
+            }}<span class="cs-sub"> ({{ sppMs(source.max_samples_per_packet) }})</span></span
+          >
         </span>
         <span class="cs-item">
           <span class="cs-key">Ch</span>
@@ -184,7 +224,6 @@ function viewSdp() {
         </span>
       </div>
     </q-card-section>
-
   </q-card>
 
   <!-- Edit dialog -->
@@ -206,30 +245,56 @@ function viewSdp() {
         <div class="field-group">
           <label class="field-label">Codec</label>
           <div class="seg-group">
-            <button v-for="c in codecOptions" :key="c"
-              class="seg-btn" :class="{ 'seg-btn--on': editForm.codec === c }"
-              @click="editForm.codec = c">{{ c }}</button>
+            <button
+              v-for="c in codecOptions"
+              :key="c"
+              class="seg-btn"
+              :class="{ 'seg-btn--on': editForm.codec === c }"
+              @click="editForm.codec = c"
+            >
+              {{ c }}
+            </button>
           </div>
         </div>
         <div class="field-group">
           <label class="field-label">Samples / Packet (Ptime)</label>
           <div class="seg-group">
-            <button v-for="n in sppOptions" :key="n"
+            <button
+              v-for="n in sppOptions"
+              :key="n"
               class="seg-btn seg-btn--sm"
               :class="{ 'seg-btn--on': editForm.max_samples_per_packet === n }"
-              @click="editForm.max_samples_per_packet = n">{{ n }}</button>
+              @click="editForm.max_samples_per_packet = n"
+            >
+              {{ n }}
+            </button>
           </div>
         </div>
         <div class="dlg-row">
-          <div class="field-group" style="flex:1">
-            <label class="field-label">채널 수</label>
-            <q-input v-model.number="editForm.channels" dense outlined type="number" :min="1" :max="8" />
+          <div class="field-group" style="flex: 1">
+            <label class="field-label">채널 단위</label>
+            <q-select
+              v-model="editForm.chUnit"
+              :options="chUnitOptions"
+              emit-value
+              map-options
+              dense
+              outlined
+              @update:model-value="editForm.chStart = 0"
+            />
           </div>
-          <div class="field-group" style="flex:1">
-            <label class="field-label">시작 채널</label>
-            <q-input v-model.number="editForm.chStart" dense outlined type="number" :min="0" :max="7" />
+          <div class="field-group" style="flex: 2">
+            <label class="field-label">채널 슬롯</label>
+            <q-select
+              v-model="editForm.chStart"
+              :options="chSlotOptions(editForm.chUnit)"
+              emit-value
+              map-options
+              dense
+              outlined
+            />
           </div>
-          <div class="field-group" style="flex:1">
+          <div class="field-group" style="flex: 1">
             <label class="field-label">TTL</label>
             <q-input v-model.number="editForm.ttl" dense outlined type="number" :min="1" />
           </div>
@@ -262,49 +327,150 @@ function viewSdp() {
 </template>
 
 <style scoped>
-.item-title { font-size: 14px; font-weight: 700; color: #37474f; }
+.item-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #37474f;
+}
 
 .st-section-label {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 11px; font-weight: 700; color: #90a4ae;
-  letter-spacing: 0.8px; text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #90a4ae;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
   padding: 10px 18px 5px;
 }
-.st-strip { padding: 8px 18px 12px; }
+.st-strip {
+  padding: 8px 18px 12px;
+}
 
 /* ── Compact inline stats ── */
-.cs-wrap  { display: flex; flex-wrap: wrap; gap: 5px 18px; align-items: center; }
-.cs-item  { display: flex; gap: 4px; align-items: center; white-space: nowrap; }
-.cs-key   { font-size: 11px; font-weight: 700; color: #90a4ae; letter-spacing: 0.4px; }
-.cs-val   { font-size: 12px; font-weight: 500; color: #37474f; font-variant-numeric: tabular-nums; }
-.cs-mono  { font-family: 'Courier New', monospace; color: #1565c0; }
-.cs-sub   { font-size: 10px; color: #90a4ae; }
-.cs-w-addr { min-width: 130px; }
+.cs-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 18px;
+  align-items: center;
+}
+.cs-item {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  white-space: nowrap;
+}
+.cs-key {
+  font-size: 11px;
+  font-weight: 700;
+  color: #90a4ae;
+  letter-spacing: 0.4px;
+}
+.cs-val {
+  font-size: 12px;
+  font-weight: 500;
+  color: #37474f;
+  font-variant-numeric: tabular-nums;
+}
+.cs-mono {
+  font-family: 'Courier New', monospace;
+  color: #1565c0;
+}
+.cs-sub {
+  font-size: 10px;
+  color: #90a4ae;
+}
+.cs-w-addr {
+  min-width: 130px;
+}
 
 /* ── Dialog ── */
-.dialog-head   { padding: 14px 20px; }
-.dialog-title  { font-size: 15px; font-weight: 700; color: #37474f; }
-.dialog-body   { display: flex; flex-direction: column; gap: 14px; padding: 16px 20px; }
-.dialog-actions { padding: 8px 16px 12px; }
-.dlg-row { display: flex; gap: 10px; align-items: flex-end; }
-.field-group { display: flex; flex-direction: column; gap: 6px; }
-.field-label { font-size: 11px; font-weight: 700; color: #90a4ae; letter-spacing: 0.5px; text-transform: uppercase; }
-.form-error  { margin: 0; font-size: 12px; color: #c62828; font-weight: 600; }
-.font-mono   { font-family: 'Courier New', monospace; }
-
-.seg-group { display: flex; gap: 5px; flex-wrap: wrap; }
-.seg-btn {
-  background: #f5f5f5; border: 1px solid #cfd8dc; border-radius: 3px;
-  padding: 6px 13px; font-size: 13px; font-weight: 600; color: #546e7a;
-  cursor: pointer; transition: background 0.1s, color 0.1s;
+.dialog-head {
+  padding: 14px 20px;
 }
-.seg-btn--sm { padding: 5px 10px; font-size: 12px; }
-.seg-btn:hover { background: #e3f2fd; border-color: #90caf9; }
-.seg-btn--on   { background: #1565c0; border-color: #1565c0; color: #fff; }
+.dialog-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #37474f;
+}
+.dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 20px;
+}
+.dialog-actions {
+  padding: 8px 16px 12px;
+}
+.dlg-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.field-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #90a4ae;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.form-error {
+  margin: 0;
+  font-size: 12px;
+  color: #c62828;
+  font-weight: 600;
+}
+.font-mono {
+  font-family: 'Courier New', monospace;
+}
+
+.seg-group {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.seg-btn {
+  background: #f5f5f5;
+  border: 1px solid #cfd8dc;
+  border-radius: 3px;
+  padding: 6px 13px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #546e7a;
+  cursor: pointer;
+  transition:
+    background 0.1s,
+    color 0.1s;
+}
+.seg-btn--sm {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+.seg-btn:hover {
+  background: #e3f2fd;
+  border-color: #90caf9;
+}
+.seg-btn--on {
+  background: #1565c0;
+  border-color: #1565c0;
+  color: #fff;
+}
 
 .sdp-text {
-  font-family: 'Courier New', monospace; font-size: 11px; color: #546e7a;
-  white-space: pre-wrap; word-break: break-all; margin: 0;
-  background: #f5f7f9; padding: 12px; border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  color: #546e7a;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+  background: #f5f7f9;
+  padding: 12px;
+  border-radius: 4px;
 }
 </style>

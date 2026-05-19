@@ -15,7 +15,14 @@ const bitrateOptions = {
   mp3:  [128, 160, 192, 224, 256, 320],
   opus: [64,  96,  128, 192, 256, 320],
 }
-const sampleRateOptions = [44100, 48000]
+const sampleRateOptions = [{ label: '44.1k', value: 44100 }, { label: '48k', value: 48000 }]
+const channelOptions    = [{ label: 'Mono', value: 1 }, { label: 'Stereo', value: 2 }]
+const protocolOptions   = [{ label: 'RTP', value: 'rtp' }, { label: 'UDP Raw', value: 'udp' }]
+const codecOptions      = [{ label: 'MP3', value: 'mp3' }, { label: 'Opus', value: 'opus' }, { label: 'RAW PCM', value: 'raw' }]
+
+const bitrateSelectOptions = computed(() =>
+  (bitrateOptions[codec.value] ?? []).map((v) => ({ label: `${v}k`, value: v })),
+)
 
 const channels   = ref(props.detail?.channels   ?? 2)
 const protocol   = ref(props.detail?.protocol   ?? 'rtp')
@@ -66,59 +73,38 @@ function onOk() {
         <!-- Channels -->
         <div>
           <div class="field-label">Channels</div>
-          <div class="seg-group q-mt-xs">
-            <button class="seg-btn" :class="{ 'seg-btn--on': channels === 1 }" @click="channels = 1">Mono</button>
-            <button class="seg-btn" :class="{ 'seg-btn--on': channels === 2 }" @click="channels = 2">Stereo</button>
-          </div>
+          <q-select v-model="channels" :options="channelOptions" emit-value map-options dense outlined class="q-mt-xs" />
         </div>
 
         <!-- Protocol -->
         <div>
           <div class="field-label">Protocol</div>
-          <div class="seg-group q-mt-xs">
-            <button class="seg-btn" :class="{ 'seg-btn--on': protocol === 'rtp' }" @click="protocol = 'rtp'">RTP</button>
-            <button class="seg-btn" :class="{ 'seg-btn--on': protocol === 'udp' }" @click="protocol = 'udp'">UDP Raw</button>
-          </div>
+          <q-select v-model="protocol" :options="protocolOptions" emit-value map-options dense outlined class="q-mt-xs" />
         </div>
 
         <!-- Codec -->
         <div>
           <div class="field-label">Codec</div>
-          <div class="seg-group q-mt-xs">
-            <button class="seg-btn" :class="{ 'seg-btn--on': codec === 'mp3' }"  @click="onCodecChange('mp3')">MP3</button>
-            <button class="seg-btn" :class="{ 'seg-btn--on': codec === 'opus' }" @click="onCodecChange('opus')">Opus</button>
-            <button class="seg-btn" :class="{ 'seg-btn--on': codec === 'raw' }"  @click="onCodecChange('raw')">RAW PCM</button>
-          </div>
+          <q-select
+            :model-value="codec"
+            :options="codecOptions"
+            emit-value map-options dense outlined class="q-mt-xs"
+            @update:model-value="onCodecChange"
+          />
         </div>
 
         <!-- Bitrate -->
         <transition name="fade">
           <div v-if="showBitrate">
             <div class="field-label">Bitrate</div>
-            <div class="seg-group seg-group--wrap q-mt-xs">
-              <button
-                v-for="br in (bitrateOptions[codec] ?? [])"
-                :key="br"
-                class="seg-btn seg-btn--sm"
-                :class="{ 'seg-btn--on': bitrate === br }"
-                @click="bitrate = br"
-              >{{ br }}k</button>
-            </div>
+            <q-select v-model="bitrate" :options="bitrateSelectOptions" emit-value map-options dense outlined class="q-mt-xs" />
           </div>
         </transition>
 
         <!-- Sample Rate -->
         <div>
           <div class="field-label">Sample Rate</div>
-          <div class="seg-group q-mt-xs">
-            <button
-              v-for="sr in sampleRateOptions"
-              :key="sr"
-              class="seg-btn seg-btn--sm"
-              :class="{ 'seg-btn--on': sampleRate === sr }"
-              @click="sampleRate = sr"
-            >{{ sr >= 1000 ? (sr / 1000) + 'k' : sr }}</button>
-          </div>
+          <q-select v-model="sampleRate" :options="sampleRateOptions" emit-value map-options dense outlined class="q-mt-xs" />
         </div>
 
         <!-- Destination -->
