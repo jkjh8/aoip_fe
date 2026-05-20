@@ -164,7 +164,7 @@ async function applyRtpOut({ protocol, codec, bitrate, sampleRate, channels, hos
             </span>
           </template>
         </div>
-        <!-- Right: level meter + edit + delete + play/stop -->
+        <!-- Right: level meter + edit + delete + expand -->
         <div class="row items-center no-wrap">
           <q-icon style="cursor: pointer" size="sm" name="edit" color="primary" @click="openEdit">
             <q-tooltip>설정 수정</q-tooltip>
@@ -179,7 +179,7 @@ async function applyRtpOut({ protocol, codec, bitrate, sampleRate, channels, hos
             <q-tooltip>STOP</q-tooltip>
           </q-icon>
           <LevelMeter
-            style="height: 40px; margin-left: 1rem"
+            style="height: 40px; margin-left: 8px"
             v-if="displayMeterChannels.length"
             :channels="displayMeterChannels"
             :title="detail?.name ?? s.client"
@@ -189,7 +189,6 @@ async function applyRtpOut({ protocol, codec, bitrate, sampleRate, channels, hos
     </q-card-section>
 
     <q-separator />
-
     <q-card-section class="q-pa-none">
       <RtpInPanel
         v-if="s.type === 'rtp_in'"

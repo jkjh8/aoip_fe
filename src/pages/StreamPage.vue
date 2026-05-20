@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch, onMounted } from 'vue'
+import { computed } from 'vue'
 import { useQuasar } from 'quasar'
 import { socket } from 'src/boot/socket'
 import { useAoipStore } from 'src/stores/aoip'
@@ -14,35 +14,6 @@ const apiBase = process.env.DEV
   ? 'http://192.168.10.103:3000'
   : `${window.location.protocol}//${window.location.hostname}:3000`
 
-// ── stream detail cache ───────────────────────────────────
-const details = ref({})
-
-function fetchDetail(client) {
-  socket.emit('rtp:stream:get', { client }, (res) => {
-    if (res?.ok && res.stream) details.value[client] = res.stream
-    else if (res && !res.ok) console.error('[stream] fetchDetail failed', res.error)
-  })
-}
-
-onMounted(() => {
-  const all = [...(aoipState.streams?.inputs ?? []), ...(aoipState.streams?.outputs ?? [])]
-  for (const s of all) fetchDetail(s.client)
-})
-
-watch(
-  () => [
-    ...(aoipState.streams?.inputs  ?? []),
-    ...(aoipState.streams?.outputs ?? []),
-  ].map((s) => s.client).join(','),
-  (clients) => {
-    if (!clients) return
-    for (const client of clients.split(',')) {
-      if (!details.value[client]) fetchDetail(client)
-    }
-  },
-  { immediate: true },
-)
-
 // ── panel builders (active only) ─────────────────────────
 function buildPanels(type) {
   const streams = type === 'rtp_in'
@@ -54,7 +25,7 @@ function buildPanels(type) {
   let idx = 0
   return streams
     .map((s) => {
-      const n = details.value[s.client]?.channels ?? 2
+      const n = s.channels ?? 2
       const channels = allChs.slice(idx, idx + n)
       idx += n
       return { s, channels }
@@ -74,10 +45,7 @@ function activateStream(s) {
   if (s.type === 'rtp_in') {
     $q.dialog({
       component: RtpInStartDialog,
-      componentProps: {
-        detail: details.value[s.client] ?? {},
-        name:   details.value[s.client]?.name ?? s.client,
-      },
+      componentProps: { detail: s, name: s.name ?? s.client },
     }).onOk(async (cfg) => {
       const { formatMode, codec, sampleRate, ...rest } = cfg
       const body = { ...rest }
@@ -95,8 +63,7 @@ function activateStream(s) {
           body: JSON.stringify(body),
         })
         const data = await res.json()
-        if (data.ok) fetchDetail(s.client)
-        else $q.notify({ type: 'negative', message: data.error ?? '시작 실패' })
+        if (!data.ok) $q.notify({ type: 'negative', message: data.error ?? '시작 실패' })
       } catch (e) {
         console.error('[stream] activate rtp_in failed', e)
       }
@@ -104,10 +71,7 @@ function activateStream(s) {
   } else {
     $q.dialog({
       component: RtpOutStartDialog,
-      componentProps: {
-        detail: details.value[s.client] ?? {},
-        name:   details.value[s.client]?.name ?? s.client,
-      },
+      componentProps: { detail: s, name: s.name ?? s.client },
     }).onOk(async ({ protocol, codec, bitrate, sampleRate, channels, host, port }) => {
       const body = { protocol, codec, sampleRate, channels }
       if (codec !== 'raw') body.bitrate = bitrate
@@ -129,7 +93,6 @@ function activateStream(s) {
             body: JSON.stringify({ host, port: Number(port) }),
           })
         }
-        fetchDetail(s.client)
       } catch (e) {
         console.error('[stream] activate rtp_out failed', e)
       }
@@ -139,7 +102,9 @@ function activateStream(s) {
 
 // ── delete stream ─────────────────────────────────────────
 function removeStream(client) {
-  const name = details.value[client]?.name ?? client
+  const s = [...(aoipState.streams?.inputs ?? []), ...(aoipState.streams?.outputs ?? [])]
+    .find((s) => s.client === client)
+  const name = s?.name ?? client
   $q.dialog({
     title: '스트림 삭제',
     message: `"${name}" 스트림을 삭제하시겠습니까?`,
@@ -148,11 +113,7 @@ function removeStream(client) {
     persistent: true,
   }).onOk(() => {
     socket.emit('rtp:stream:delete', { client }, (res) => {
-      if (!res?.ok) {
-        $q.notify({ type: 'negative', message: res?.error ?? '삭제 실패' })
-        return
-      }
-      delete details.value[client]
+      if (!res?.ok) $q.notify({ type: 'negative', message: res?.error ?? '삭제 실패' })
     })
   })
 }
@@ -187,7 +148,7 @@ function removeStream(client) {
                     dense clickable v-close-popup
                     @click="activateStream(s)"
                   >
-                    <q-item-section>{{ details[s.client]?.name ?? s.client }}</q-item-section>
+                    <q-item-section>{{ s.name ?? s.client }}</q-item-section>
                     <q-item-section side>
                       <q-btn
                         flat round dense size="xs"
@@ -211,9 +172,9 @@ function removeStream(client) {
             v-for="{ s, channels } in rtpInPanels"
             :key="s.client"
             :s="s"
-            :detail="details[s.client]"
+            :detail="s"
             :meter-channels="channels"
-            @refresh="fetchDetail"
+
             @remove="removeStream(s.client)"
           />
           <div v-if="!rtpInPanels.length" class="empty-col">
@@ -245,7 +206,7 @@ function removeStream(client) {
                     dense clickable v-close-popup
                     @click="activateStream(s)"
                   >
-                    <q-item-section>{{ details[s.client]?.name ?? s.client }}</q-item-section>
+                    <q-item-section>{{ s.name ?? s.client }}</q-item-section>
                     <q-item-section side>
                       <q-btn
                         flat round dense size="xs"
@@ -269,9 +230,9 @@ function removeStream(client) {
             v-for="{ s, channels } in rtpOutPanels"
             :key="s.client"
             :s="s"
-            :detail="details[s.client]"
+            :detail="s"
             :meter-channels="channels"
-            @refresh="fetchDetail"
+
             @remove="removeStream(s.client)"
           />
           <div v-if="!rtpOutPanels.length" class="empty-col">

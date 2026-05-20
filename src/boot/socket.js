@@ -49,6 +49,9 @@ export default defineBoot(({ app, pinia }) => {
   socket.on('system:network', (data) => {
     if (data) Object.assign(settingsStore.network, data)
   })
+  socket.on('streams', (data) => {
+    store.streams = data
+  })
   socket.on('channels', (data) => {
     store.channels = data
   })

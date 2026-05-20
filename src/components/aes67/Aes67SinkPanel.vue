@@ -58,7 +58,7 @@ function remove() {
     <q-card-section class="q-py-sm">
       <div class="row no-wrap justify-between items-center q-gutter-x-sm">
         <div class="q-gutter-x-sm">
-          <q-icon name="download" size="md" color="green-7" />
+          <q-icon name="download" size="sm" color="green-7" />
           <span class="item-title">{{ sink.name }}</span>
           <q-badge v-if="isLocked !== null" outline :color="isLocked ? 'positive' : 'warning'">
             {{ isLocked ? 'Connected' : 'Waiting' }}

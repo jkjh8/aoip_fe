@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps({
   s: { type: Object, required: true },
@@ -7,18 +7,30 @@ const props = defineProps({
   busy: { type: Boolean, default: false },
 })
 const fillMs = computed(() => props.s.bufStats?.fillMs ?? props.s.stats?.bufStats?.fillMs ?? 0)
+const statsExpanded = ref(false)
 </script>
 
 <template>
   <!-- Receive Stream stats -->
-  <div class="st-section-label">Receive Stream</div>
+  <div class="st-section-label">
+    Receive Stream
+    <q-icon
+      :name="statsExpanded ? 'expand_less' : 'expand_more'"
+      size="14px"
+      color="grey-5"
+      class="lbl-toggle"
+      @click="statsExpanded = !statsExpanded"
+    >
+      <q-tooltip>{{ statsExpanded ? '접기' : '상세 통계' }}</q-tooltip>
+    </q-icon>
+  </div>
   <div class="st-strip cs-wrap">
     <span class="cs-item cs-w-src">
       <span class="cs-key">Src</span>
       <span class="cs-val">
         <template v-if="s.stats?.srcIp">
-          <span class="ip-chip">{{ s.stats.srcIp }}</span>
-          <span class="info-port-badge">:{{ s.stats.srcPort }}</span>
+          <span class="src-ip">{{ s.stats.srcIp }}</span>
+          <span class="src-port">:{{ s.stats.srcPort }}</span>
         </template>
         <span v-else class="cs-muted">{{ s.ready ? 'Detecting…' : 'None' }}</span>
       </span>
@@ -35,6 +47,8 @@ const fillMs = computed(() => props.s.bufStats?.fillMs ?? props.s.stats?.bufStat
         {{ s.stats?.bitrateKbps > 0 ? s.stats.bitrateKbps + ' kbps' : '—' }}
       </span>
     </span>
+  </div>
+  <div v-if="statsExpanded" class="st-strip cs-wrap st-stats-extra">
     <span class="cs-item cs-w-ms">
       <span class="cs-key">Buf</span>
       <span class="cs-val" :class="s.stats?.bufUsedMs > 0 ? '' : 'cs-muted'">
@@ -72,11 +86,12 @@ const fillMs = computed(() => props.s.bufStats?.fillMs ?? props.s.stats?.bufStat
   text-transform: uppercase;
   padding: 10px 18px 5px;
 }
-.lbl-btn {
-  margin-left: 2px;
-  opacity: 0.6;
+.lbl-toggle {
+  margin-left: auto;
+  cursor: pointer;
+  opacity: 0.5;
 }
-.lbl-btn:hover {
+.lbl-toggle:hover {
   opacity: 1;
 }
 
@@ -86,6 +101,11 @@ const fillMs = computed(() => props.s.bufStats?.fillMs ?? props.s.stats?.bufStat
 }
 .st-strip:last-child {
   border-bottom: none;
+}
+.st-stats-extra {
+  background: #fafafa;
+  padding-top: 6px;
+  padding-bottom: 8px;
 }
 
 /* ── Compact inline stats ── */
@@ -147,19 +167,15 @@ const fillMs = computed(() => props.s.bufStats?.fillMs ?? props.s.stats?.bufStat
   min-width: 58px;
 }
 
-.ip-chip {
-  background: #e8f5e9;
-  border: 1px solid #a5d6a7;
-  border-radius: 3px;
-  padding: 1px 7px;
+.src-ip {
   font-size: 12px;
   font-weight: 600;
   color: #2e7d32;
   font-family: 'Courier New', monospace;
 }
-.info-port-badge {
-  font-size: 13px;
-  font-weight: 700;
+.src-port {
+  font-size: 12px;
+  font-weight: 600;
   color: #1565c0;
   font-family: 'Courier New', monospace;
 }

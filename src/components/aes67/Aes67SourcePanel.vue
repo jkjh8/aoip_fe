@@ -1,8 +1,10 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { useQuasar } from 'quasar'
 import { socket } from 'src/boot/socket'
 import { useAoipStore } from 'src/stores/aoip'
 import LevelMeter from 'src/components/mixer/LevelMeter.vue'
+import Aes67SourceEditDialog from 'src/components/aes67/Aes67SourceEditDialog.vue'
 
 const props = defineProps({
   source: { type: Object, required: true },
@@ -10,32 +12,12 @@ const props = defineProps({
 
 const emit = defineEmits(['refresh'])
 
+const $q = useQuasar()
 const aoipState = useAoipStore()
 
 const busy = ref(false)
 const showSdp = ref(false)
 const sdpText = ref('')
-
-const showEdit = ref(false)
-const editBusy = ref(false)
-const editError = ref('')
-const editForm = ref({})
-
-const codecOptions = ['L16', 'L24', 'AM824']
-const sppOptions = [12, 24, 48, 96, 192]
-
-const chUnitOptions = [
-  { label: '2ch', value: 2 },
-  { label: '8ch', value: 8 },
-]
-
-function chSlotOptions(unit) {
-  const slots = []
-  for (let i = 0; i < 16; i += unit) {
-    slots.push({ label: `Ch ${i + 1}–${i + unit}`, value: i })
-  }
-  return slots
-}
 
 const meterChannels = computed(() => {
   const aes67Chs = aoipState.channels.outputs.filter((ch) =>
@@ -70,71 +52,7 @@ function patch(fields) {
 }
 
 function openEdit() {
-  const mapLen = props.source.map?.length ?? 2
-  editForm.value = {
-    name: props.source.name,
-    address: props.source.address,
-    codec: props.source.codec,
-    max_samples_per_packet: props.source.max_samples_per_packet,
-    chUnit: mapLen >= 8 ? 8 : 2,
-    chStart: props.source.map?.[0] ?? 0,
-    ttl: props.source.ttl ?? 15,
-  }
-  editError.value = ''
-  showEdit.value = true
-}
-
-function confirmEdit() {
-  const f = editForm.value
-  if (!f.name.trim()) {
-    editError.value = '이름을 입력하세요'
-    return
-  }
-  if (!f.address.trim()) {
-    editError.value = '주소를 입력하세요'
-    return
-  }
-
-  const map = Array.from({ length: f.chUnit }, (_, i) => f.chStart + i)
-  const others = aoipState.aes67Sources.filter((s) => s.id !== props.source.id)
-
-  const addrConflict = others.find((s) => s.address === f.address.trim())
-  if (addrConflict) {
-    editError.value = `주소 ${f.address.trim()}는 "${addrConflict.name}"에서 이미 사용 중입니다`
-    return
-  }
-  const mapSet = new Set(map)
-  const chConflict = others.find((s) => (s.map ?? []).some((ch) => mapSet.has(ch)))
-  if (chConflict) {
-    const used = chConflict.map
-      .filter((ch) => mapSet.has(ch))
-      .map((ch) => `Ch ${ch + 1}`)
-      .join(', ')
-    editError.value = `채널이 "${chConflict.name}"과 겹칩니다 (${used})`
-    return
-  }
-
-  editBusy.value = true
-  editError.value = ''
-  const { id } = props.source
-  socket.emit(
-    'aes67:source:add',
-    {
-      ...props.source,
-      id,
-      name: f.name.trim(),
-      address: f.address.trim(),
-      codec: f.codec,
-      max_samples_per_packet: f.max_samples_per_packet,
-      ttl: f.ttl,
-      map,
-    },
-    (res) => {
-      editBusy.value = false
-      if (res?.ok) showEdit.value = false
-      else editError.value = res?.error ?? 'Failed'
-    },
-  )
+  $q.dialog({ component: Aes67SourceEditDialog, componentProps: { source: props.source } })
 }
 
 function remove() {
@@ -226,89 +144,6 @@ function viewSdp() {
     </q-card-section>
   </q-card>
 
-  <!-- Edit dialog -->
-  <q-dialog v-model="showEdit" persistent>
-    <q-card style="min-width: 400px">
-      <q-card-section class="dialog-head">
-        <span class="dialog-title">Edit Source</span>
-      </q-card-section>
-      <q-separator />
-      <q-card-section class="dialog-body">
-        <div class="field-group">
-          <label class="field-label">이름</label>
-          <q-input v-model="editForm.name" dense outlined autofocus />
-        </div>
-        <div class="field-group">
-          <label class="field-label">Multicast Address</label>
-          <q-input v-model="editForm.address" dense outlined class="font-mono" />
-        </div>
-        <div class="field-group">
-          <label class="field-label">Codec</label>
-          <div class="seg-group">
-            <button
-              v-for="c in codecOptions"
-              :key="c"
-              class="seg-btn"
-              :class="{ 'seg-btn--on': editForm.codec === c }"
-              @click="editForm.codec = c"
-            >
-              {{ c }}
-            </button>
-          </div>
-        </div>
-        <div class="field-group">
-          <label class="field-label">Samples / Packet (Ptime)</label>
-          <div class="seg-group">
-            <button
-              v-for="n in sppOptions"
-              :key="n"
-              class="seg-btn seg-btn--sm"
-              :class="{ 'seg-btn--on': editForm.max_samples_per_packet === n }"
-              @click="editForm.max_samples_per_packet = n"
-            >
-              {{ n }}
-            </button>
-          </div>
-        </div>
-        <div class="dlg-row">
-          <div class="field-group" style="flex: 1">
-            <label class="field-label">채널 단위</label>
-            <q-select
-              v-model="editForm.chUnit"
-              :options="chUnitOptions"
-              emit-value
-              map-options
-              dense
-              outlined
-              @update:model-value="editForm.chStart = 0"
-            />
-          </div>
-          <div class="field-group" style="flex: 2">
-            <label class="field-label">채널 슬롯</label>
-            <q-select
-              v-model="editForm.chStart"
-              :options="chSlotOptions(editForm.chUnit)"
-              emit-value
-              map-options
-              dense
-              outlined
-            />
-          </div>
-          <div class="field-group" style="flex: 1">
-            <label class="field-label">TTL</label>
-            <q-input v-model.number="editForm.ttl" dense outlined type="number" :min="1" />
-          </div>
-        </div>
-        <p v-if="editError" class="form-error">{{ editError }}</p>
-      </q-card-section>
-      <q-separator />
-      <q-card-actions align="right" class="dialog-actions">
-        <q-btn flat label="취소" color="grey-7" v-close-popup />
-        <q-btn unelevated label="저장" color="blue-7" :loading="editBusy" @click="confirmEdit" />
-      </q-card-actions>
-    </q-card>
-  </q-dialog>
-
   <!-- SDP dialog -->
   <q-dialog v-model="showSdp">
     <q-card style="min-width: 500px; max-width: 90vw">
@@ -383,83 +218,6 @@ function viewSdp() {
 }
 .cs-w-addr {
   min-width: 130px;
-}
-
-/* ── Dialog ── */
-.dialog-head {
-  padding: 14px 20px;
-}
-.dialog-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: #37474f;
-}
-.dialog-body {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 16px 20px;
-}
-.dialog-actions {
-  padding: 8px 16px 12px;
-}
-.dlg-row {
-  display: flex;
-  gap: 10px;
-  align-items: flex-end;
-}
-.field-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.field-label {
-  font-size: 11px;
-  font-weight: 700;
-  color: #90a4ae;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
-.form-error {
-  margin: 0;
-  font-size: 12px;
-  color: #c62828;
-  font-weight: 600;
-}
-.font-mono {
-  font-family: 'Courier New', monospace;
-}
-
-.seg-group {
-  display: flex;
-  gap: 5px;
-  flex-wrap: wrap;
-}
-.seg-btn {
-  background: #f5f5f5;
-  border: 1px solid #cfd8dc;
-  border-radius: 3px;
-  padding: 6px 13px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #546e7a;
-  cursor: pointer;
-  transition:
-    background 0.1s,
-    color 0.1s;
-}
-.seg-btn--sm {
-  padding: 5px 10px;
-  font-size: 12px;
-}
-.seg-btn:hover {
-  background: #e3f2fd;
-  border-color: #90caf9;
-}
-.seg-btn--on {
-  background: #1565c0;
-  border-color: #1565c0;
-  color: #fff;
 }
 
 .sdp-text {

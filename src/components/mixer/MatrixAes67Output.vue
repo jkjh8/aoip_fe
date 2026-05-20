@@ -1,11 +1,15 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useQuasar } from 'quasar'
 import { socket } from 'src/boot/socket'
 import { useAoipStore } from 'src/stores/aoip'
 import { useChannelPanel } from 'src/composables/useChannelPanel'
 import LevelMeter from 'src/components/mixer/LevelMeter.vue'
 import RoutingDialog from 'src/components/mixer/RoutingDialog.vue'
+import Aes67SourceAddDialog from 'src/components/aes67/Aes67SourceAddDialog.vue'
+import Aes67SourceEditDialog from 'src/components/aes67/Aes67SourceEditDialog.vue'
 
+const $q = useQuasar()
 const aoipState = useAoipStore()
 
 const {
@@ -94,151 +98,12 @@ function toggleEnabled(source) {
   })
 }
 
-// ── Channel slot options (disable used slots) ─────────────
-function usedSlots(excludeId = null) {
-  const used = new Set()
-  for (const s of aoipState.aes67Sources) {
-    if (s.id === excludeId) continue
-    for (const idx of (s.map ?? [])) used.add(idx)
-  }
-  return used
+function openAddSource() {
+  $q.dialog({ component: Aes67SourceAddDialog }).onOk(() => refreshSources())
 }
-
-function chSlotOptions(unit, excludeId = null) {
-  const used = usedSlots(excludeId)
-  const slots = []
-  for (let i = 0; i < 16; i += unit) {
-    const inUse = Array.from({ length: unit }, (_, j) => i + j).some((idx) => used.has(idx))
-    slots.push({ label: `Ch ${i + 1}–${i + unit}`, value: i, disable: inUse })
-  }
-  return slots
-}
-
-function firstAvailableSlot(unit, excludeId = null) {
-  const used = usedSlots(excludeId)
-  for (let i = 0; i < 16; i += unit) {
-    const inUse = Array.from({ length: unit }, (_, j) => i + j).some((idx) => used.has(idx))
-    if (!inUse) return i
-  }
-  return 0
-}
-
-// ── Edit source dialog ────────────────────────────────────
-const showEdit = ref(false)
-const editBusy = ref(false)
-const editError = ref('')
-const editingSource = ref(null)
-const editForm = ref({})
-
-const codecOptions = ['L16', 'L24', 'AM824']
-const sppOptions = [12, 24, 48, 96, 192]
-const chUnitOptions = [{ label: '2ch', value: 2 }, { label: '8ch', value: 8 }]
 
 function openEdit(source) {
-  editingSource.value = source
-  const mapLen = source.map?.length ?? 2
-  editForm.value = {
-    name: source.name,
-    address: source.address,
-    codec: source.codec,
-    max_samples_per_packet: source.max_samples_per_packet,
-    chUnit: mapLen >= 8 ? 8 : 2,
-    chStart: source.map?.[0] ?? 0,
-    ttl: source.ttl ?? 15,
-  }
-  editError.value = ''
-  showEdit.value = true
-}
-
-function confirmEdit() {
-  const f = editForm.value
-  const source = editingSource.value
-  if (!f.name.trim()) { editError.value = '이름을 입력하세요'; return }
-  if (!f.address.trim()) { editError.value = '주소를 입력하세요'; return }
-
-  const map = Array.from({ length: f.chUnit }, (_, i) => f.chStart + i)
-  const others = aoipState.aes67Sources.filter((s) => s.id !== source.id)
-
-  const addrConflict = others.find((s) => s.address === f.address.trim())
-  if (addrConflict) { editError.value = `주소 ${f.address.trim()}는 "${addrConflict.name}"에서 이미 사용 중입니다`; return }
-
-  const mapSet = new Set(map)
-  const chConflict = others.find((s) => (s.map ?? []).some((ch) => mapSet.has(ch)))
-  if (chConflict) {
-    const used = chConflict.map.filter((ch) => mapSet.has(ch)).map((ch) => `Ch ${ch + 1}`).join(', ')
-    editError.value = `채널이 "${chConflict.name}"과 겹칩니다 (${used})`
-    return
-  }
-
-  editBusy.value = true
-  editError.value = ''
-  socket.emit('aes67:source:add', {
-    ...source,
-    name: f.name.trim(),
-    address: f.address.trim(),
-    codec: f.codec,
-    max_samples_per_packet: f.max_samples_per_packet,
-    ttl: f.ttl,
-    map,
-  }, (res) => {
-    editBusy.value = false
-    if (res?.ok) { showEdit.value = false; refreshSources() }
-    else editError.value = res?.error ?? 'Failed'
-  })
-}
-
-// ── Add Source dialog ─────────────────────────────────────
-const showAddSource = ref(false)
-const srcBusy = ref(false)
-const srcError = ref('')
-
-const nextSourceId = computed(() =>
-  sources.value.length ? Math.max(...sources.value.map((s) => s.id)) + 1 : 0,
-)
-
-const srcCodecOptions = ['L16', 'L24', 'AM824']
-const srcSppOptions = [12, 24, 48, 96, 192]
-
-const srcForm = ref({ name: '', address: '239.69.0.1', codec: 'L24', spp: 48, chUnit: 2, chStart: 0, ttl: 15 })
-
-function openAddSource() {
-  const chUnit = 2
-  srcForm.value = { name: '', address: '239.69.0.1', codec: 'L24', spp: 48, chUnit, chStart: firstAvailableSlot(chUnit), ttl: 15 }
-  srcError.value = ''
-  showAddSource.value = true
-}
-
-function confirmAddSource() {
-  const f = srcForm.value
-  if (!f.name.trim()) { srcError.value = '이름을 입력하세요'; return }
-  if (!f.address.trim()) { srcError.value = '주소를 입력하세요'; return }
-
-  const map = Array.from({ length: f.chUnit }, (_, i) => f.chStart + i)
-
-  const addrConflict = sources.value.find((s) => s.address === f.address.trim())
-  if (addrConflict) { srcError.value = `주소 ${f.address.trim()}는 "${addrConflict.name}"에서 이미 사용 중입니다`; return }
-
-  const mapSet = new Set(map)
-  const chConflict = sources.value.find((s) => (s.map ?? []).some((ch) => mapSet.has(ch)))
-  if (chConflict) {
-    const used = chConflict.map.filter((ch) => mapSet.has(ch)).map((ch) => `Ch ${ch + 1}`).join(', ')
-    srcError.value = `채널이 "${chConflict.name}"과 겹칩니다 (${used})`
-    return
-  }
-
-  srcBusy.value = true
-  srcError.value = ''
-  socket.emit('aes67:source:add', {
-    id: nextSourceId.value, enabled: true,
-    name: f.name.trim(), io: 'Audio Device',
-    address: f.address.trim(), codec: f.codec,
-    max_samples_per_packet: f.spp, ttl: f.ttl,
-    payload_type: 98, dscp: 34, refclk_ptp_traceable: false, map,
-  }, (res) => {
-    if (res?.ok) { showAddSource.value = false; refreshSources() }
-    else srcError.value = res?.error ?? 'Failed'
-    srcBusy.value = false
-  })
+  $q.dialog({ component: Aes67SourceEditDialog, componentProps: { source } }).onOk(() => refreshSources())
 }
 </script>
 
@@ -264,19 +129,21 @@ function confirmAddSource() {
             <q-badge outline :color="source.enabled ? 'positive' : 'grey-5'" class="q-ml-xs">
               {{ source.enabled ? 'ON' : 'OFF' }}
             </q-badge>
-            <q-btn flat dense round size="xs"
-              :icon="source.enabled ? 'pause_circle' : 'play_circle'"
-              :color="source.enabled ? 'orange-7' : 'positive'"
-              :loading="busyMap[source.id]"
-              @click="toggleEnabled(source)">
-              <q-tooltip>{{ source.enabled ? 'Disable' : 'Enable' }}</q-tooltip>
-            </q-btn>
-            <q-btn flat dense round size="xs" icon="edit" color="grey-6" @click="openEdit(source)">
-              <q-tooltip>수정</q-tooltip>
-            </q-btn>
-            <q-btn flat dense round size="xs" icon="delete_outline" color="negative" @click="removeSource(source)">
-              <q-tooltip>삭제</q-tooltip>
-            </q-btn>
+            <div style="margin-left:auto; display:flex; align-items:center; gap:2px">
+              <q-btn flat dense round size="xs"
+                :icon="source.enabled ? 'pause_circle' : 'play_circle'"
+                :color="source.enabled ? 'orange-7' : 'positive'"
+                :loading="busyMap[source.id]"
+                @click="toggleEnabled(source)">
+                <q-tooltip>{{ source.enabled ? 'Disable' : 'Enable' }}</q-tooltip>
+              </q-btn>
+              <q-btn flat dense round size="xs" icon="edit" color="grey-6" @click="openEdit(source)">
+                <q-tooltip>수정</q-tooltip>
+              </q-btn>
+              <q-btn flat dense round size="xs" icon="delete_outline" color="negative" @click="removeSource(source)">
+                <q-tooltip>삭제</q-tooltip>
+              </q-btn>
+            </div>
           </div>
 
           <div v-for="ch in sourceChannels(source)" :key="ch.id" class="ch-strip">
@@ -346,107 +213,6 @@ function confirmAddSource() {
 
   <RoutingDialog v-model="routeDialogOpen" :route-target="routeTarget" />
 
-  <!-- ── Edit Source Dialog ──────────────────────────────── -->
-  <q-dialog v-model="showEdit" persistent>
-    <q-card style="min-width: 400px">
-      <q-card-section class="dialog-head">
-        <span class="dialog-title">Edit Source</span>
-      </q-card-section>
-      <q-separator />
-      <q-card-section class="dialog-body">
-        <div class="field-group">
-          <label class="field-label">이름</label>
-          <q-input v-model="editForm.name" dense outlined autofocus />
-        </div>
-        <div class="field-group">
-          <label class="field-label">Multicast Address</label>
-          <q-input v-model="editForm.address" dense outlined class="font-mono" />
-        </div>
-        <div class="field-group">
-          <label class="field-label">Codec</label>
-          <div class="seg-group">
-            <button v-for="c in codecOptions" :key="c" class="seg-btn" :class="{ 'seg-btn--on': editForm.codec === c }" @click="editForm.codec = c">{{ c }}</button>
-          </div>
-        </div>
-        <div class="field-group">
-          <label class="field-label">Samples / Packet (Ptime)</label>
-          <div class="seg-group">
-            <button v-for="n in sppOptions" :key="n" class="seg-btn seg-btn--sm" :class="{ 'seg-btn--on': editForm.max_samples_per_packet === n }" @click="editForm.max_samples_per_packet = n">{{ n }}</button>
-          </div>
-        </div>
-        <div class="dlg-row">
-          <div class="field-group" style="flex:1">
-            <label class="field-label">채널 단위</label>
-            <q-select v-model="editForm.chUnit" :options="chUnitOptions" emit-value map-options dense outlined @update:model-value="(val) => { editForm.chStart = firstAvailableSlot(val, editingSource?.id) }" />
-          </div>
-          <div class="field-group" style="flex:2">
-            <label class="field-label">채널 슬롯</label>
-            <q-select v-model="editForm.chStart" :options="chSlotOptions(editForm.chUnit, editingSource?.id)"
-              emit-value map-options dense outlined option-disable="disable" />
-          </div>
-          <div class="field-group" style="flex:1">
-            <label class="field-label">TTL</label>
-            <q-input v-model.number="editForm.ttl" dense outlined type="number" :min="1" />
-          </div>
-        </div>
-        <p v-if="editError" class="form-error">{{ editError }}</p>
-      </q-card-section>
-      <q-separator />
-      <q-card-actions align="right" class="dialog-actions">
-        <q-btn flat label="취소" color="grey-7" v-close-popup />
-        <q-btn unelevated label="저장" color="blue-7" :loading="editBusy" @click="confirmEdit" />
-      </q-card-actions>
-    </q-card>
-  </q-dialog>
-
-  <!-- ── Add Source Dialog ───────────────────────────────── -->
-  <q-dialog v-model="showAddSource" persistent>
-    <q-card style="min-width: 400px">
-      <q-card-section class="dialog-head">
-        <span class="dialog-title">Add AES67 Source (출력)</span>
-      </q-card-section>
-      <q-separator />
-      <q-card-section class="dialog-body">
-        <div class="field-group">
-          <label class="field-label">이름</label>
-          <q-input v-model="srcForm.name" dense outlined placeholder="Source 이름" autofocus />
-        </div>
-        <div class="field-group">
-          <label class="field-label">Multicast Address</label>
-          <q-input v-model="srcForm.address" dense outlined placeholder="239.69.x.x" class="font-mono" />
-        </div>
-        <div class="field-group">
-          <label class="field-label">Codec</label>
-          <div class="seg-group">
-            <button v-for="c in srcCodecOptions" :key="c" class="seg-btn" :class="{ 'seg-btn--on': srcForm.codec === c }" @click="srcForm.codec = c">{{ c }}</button>
-          </div>
-        </div>
-        <div class="field-group">
-          <label class="field-label">Samples / Packet (Ptime)</label>
-          <div class="seg-group">
-            <button v-for="n in srcSppOptions" :key="n" class="seg-btn seg-btn--sm" :class="{ 'seg-btn--on': srcForm.spp === n }" @click="srcForm.spp = n">{{ n }}</button>
-          </div>
-        </div>
-        <div class="dlg-row">
-          <div class="field-group" style="flex:1">
-            <label class="field-label">채널 단위</label>
-            <q-select v-model="srcForm.chUnit" :options="chUnitOptions" emit-value map-options dense outlined @update:model-value="(val) => { srcForm.chStart = firstAvailableSlot(val) }" />
-          </div>
-          <div class="field-group" style="flex:2">
-            <label class="field-label">채널 슬롯</label>
-            <q-select v-model="srcForm.chStart" :options="chSlotOptions(srcForm.chUnit)"
-              emit-value map-options dense outlined option-disable="disable" />
-          </div>
-        </div>
-        <p v-if="srcError" class="form-error">{{ srcError }}</p>
-      </q-card-section>
-      <q-separator />
-      <q-card-actions align="right" class="dialog-actions">
-        <q-btn flat label="취소" color="grey-7" v-close-popup />
-        <q-btn unelevated label="추가" color="blue-7" :loading="srcBusy" @click="confirmAddSource" />
-      </q-card-actions>
-    </q-card>
-  </q-dialog>
 </template>
 
 <style scoped>
@@ -514,24 +280,4 @@ function confirmAddSource() {
   flex-shrink: 0;
 }
 
-/* Dialog */
-.dialog-head { padding: 14px 20px; }
-.dialog-title { font-size: 15px; font-weight: 700; color: #37474f; }
-.dialog-body { display: flex; flex-direction: column; gap: 14px; padding: 16px 20px; }
-.dialog-actions { padding: 8px 16px 12px; }
-.dlg-row { display: flex; gap: 10px; align-items: flex-end; }
-.field-group { display: flex; flex-direction: column; gap: 6px; }
-.field-label { font-size: 11px; font-weight: 700; color: #90a4ae; letter-spacing: 0.5px; text-transform: uppercase; }
-.form-error { margin: 0; font-size: 12px; color: #c62828; font-weight: 600; }
-.font-mono { font-family: 'Courier New', monospace; }
-
-.seg-group { display: flex; gap: 5px; flex-wrap: wrap; }
-.seg-btn {
-  background: #f5f5f5; border: 1px solid #cfd8dc; border-radius: 3px;
-  padding: 6px 13px; font-size: 13px; font-weight: 600; color: #546e7a; cursor: pointer;
-  transition: background 0.1s, color 0.1s;
-}
-.seg-btn--sm { padding: 5px 10px; font-size: 12px; }
-.seg-btn:hover { background: #e3f2fd; border-color: #90caf9; }
-.seg-btn--on { background: #1565c0; border-color: #1565c0; color: #fff; }
 </style>
