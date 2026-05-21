@@ -44,7 +44,7 @@ export function useChannelPanel(channelType) {
 
   const SECTION_META = {
     analog: { title: 'Analog', color: '#1976d2' },
-    stream: { title: 'Stream', color: '#e65100' },
+    stream: { title: 'Stream', color: '#2e7d32' },
     aes67:  { title: 'AES67',  color: '#7b1fa2' },
     other:  { title: 'Other',  color: '#546e7a' },
   }
@@ -81,7 +81,7 @@ export function useChannelPanel(channelType) {
     const l = label.toLowerCase()
     if (l.includes('analog')) return { text: 'ANA', color: '#1976d2' }
     if (l.includes('aes67')) return { text: 'AES', color: '#7b1fa2' }
-    if (l.includes('stream')) return { text: 'STR', color: '#e65100' }
+    if (l.includes('stream')) return { text: 'STR', color: '#2e7d32' }
     return { text: label.substring(0, 3).toUpperCase(), color: '#546e7a' }
   }
 

@@ -8,11 +8,11 @@ const emit = defineEmits(['update:modelValue'])
 
 const aoipState = useAoipStore()
 
-const inputs  = computed(() => aoipState.filteredInputs)
+const inputs = computed(() => aoipState.filteredInputs)
 const outputs = computed(() => aoipState.filteredOutputs)
 
 function isConnected(inPort, outPort) {
-  const entry = aoipState.connections.find(c => c.port === inPort)
+  const entry = aoipState.connections.find((c) => c.port === inPort)
   return entry ? entry.connections.includes(outPort) : false
 }
 
@@ -20,23 +20,23 @@ function toggle(inPort, outPort) {
   if (isConnected(inPort, outPort)) {
     socket.emit('route:remove', { src: inPort, dst: outPort })
   } else {
-    socket.emit('route:add',    { src: inPort, dst: outPort })
+    socket.emit('route:add', { src: inPort, dst: outPort })
   }
 }
 
 function typeColor(label) {
   const l = label.toLowerCase()
-  if (l.includes('analog'))  return '#1976d2'
-  if (l.includes('aes67'))   return '#7b1fa2'
-  if (l.includes('stream'))  return '#e65100'
+  if (l.includes('analog')) return '#1976d2'
+  if (l.includes('aes67')) return '#7b1fa2'
+  if (l.includes('stream')) return '#2e7d32'
   return '#546e7a'
 }
 
 function typeTag(label) {
   const l = label.toLowerCase()
-  if (l.includes('analog'))  return 'ANA'
-  if (l.includes('aes67'))   return 'AES'
-  if (l.includes('stream'))  return 'STR'
+  if (l.includes('analog')) return 'ANA'
+  if (l.includes('aes67')) return 'AES'
+  if (l.includes('stream')) return 'STR'
   return label.substring(0, 3).toUpperCase()
 }
 
@@ -51,6 +51,7 @@ function shortLabel(label) {
   <q-dialog
     :model-value="modelValue"
     @update:model-value="emit('update:modelValue', $event)"
+    persistent
   >
     <q-card class="mx-card">
       <!-- 헤더 -->
@@ -65,8 +66,14 @@ function shortLabel(label) {
         <table class="mx-table">
           <thead>
             <tr>
-              <!-- 코너 셀 -->
-              <th class="mx-corner" />
+              <!-- 코너 셀: IN/OUT 축 표시 -->
+              <th class="mx-corner">
+                <div class="mx-corner-inner">
+                  <span class="mx-axis mx-axis--out">OUTPUT →</span>
+                  <div class="mx-corner-line" />
+                  <span class="mx-axis mx-axis--in">↓ INPUT</span>
+                </div>
+              </th>
               <!-- 출력 컬럼 헤더 -->
               <th v-for="out in outputs" :key="out.id" class="mx-col-head">
                 <div class="mx-col-inner">
@@ -85,7 +92,7 @@ function shortLabel(label) {
                 <span class="mx-col-tag" :style="`background:${typeColor(inp.label)}`">
                   {{ typeTag(inp.label) }}
                 </span>
-                <span class="mx-col-label">{{ inp.label }}</span>
+                <span class="mx-col-label">{{ shortLabel(inp.label) }}</span>
               </td>
               <!-- 크로스포인트 셀 -->
               <td
@@ -142,8 +149,35 @@ function shortLabel(label) {
 
 /* ── 코너 ── */
 .mx-corner {
-  width: 130px;
-  min-width: 130px;
+  width: 50px;
+  min-width: 50px;
+  vertical-align: bottom;
+  padding-bottom: 6px;
+}
+.mx-corner-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.mx-axis {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+.mx-axis--out {
+  color: #1565c0;
+  align-self: flex-end;
+}
+.mx-axis--in {
+  color: #2e7d32;
+  align-self: flex-start;
+}
+.mx-corner-line {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(to right, #2e7d32 40%, #1565c0 60%);
+  opacity: 0.4;
 }
 
 /* ── 공통 배지 + 라벨 ── */
@@ -164,8 +198,8 @@ function shortLabel(label) {
 
 /* ── 출력 컬럼 헤더 ── */
 .mx-col-head {
-  width: 44px;
-  min-width: 44px;
+  width: 30px;
+  min-width: 30px;
   padding: 0 0 6px;
   vertical-align: bottom;
   text-align: center;
@@ -174,27 +208,26 @@ function shortLabel(label) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 
 /* ── 입력 행 헤더 ── */
 .mx-row-head {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 12px 0 0;
-  height: 44px;
+  gap: 5px;
+  padding: 0 10px 0 0;
+  height: 30px;
   white-space: nowrap;
 }
-
 /* ── 크로스포인트 셀 ── */
 .mx-cell {
-  width: 44px;
-  height: 44px;
+  width: 30px;
+  height: 30px;
   text-align: center;
   vertical-align: middle;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 3px;
   background: #f0f2f5;
   transition: background 0.1s;
 }
@@ -202,10 +235,9 @@ function shortLabel(label) {
   background: #dce3ea;
 }
 .mx-cell--on {
-  background: #1565c0;
+  background: #81d4fa;
 }
 .mx-cell--on:hover {
-  background: #1976d2;
+  background: #4fc3f7;
 }
-
 </style>

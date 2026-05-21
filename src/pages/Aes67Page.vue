@@ -41,11 +41,26 @@ const ptpLabel = computed(() => {
   return status ?? 'Unknown'
 })
 
+function hasAvailableSlot(items) {
+  const used = new Set(items.flatMap((s) => s.map ?? []))
+  for (let i = 0; i < 16; i += 2)
+    if (!used.has(i) && !used.has(i + 1)) return true
+  return false
+}
+
 function openAddSink() {
+  if (!hasAvailableSlot(sinks.value)) {
+    $q.notify({ type: 'negative', message: '할당 가능한 채널 슬롯이 없습니다 (최대 16ch)' })
+    return
+  }
   $q.dialog({ component: Aes67SinkAddDialog }).onOk(() => fetchSinks())
 }
 
 function openAddSource() {
+  if (!hasAvailableSlot(sources.value)) {
+    $q.notify({ type: 'negative', message: '할당 가능한 채널 슬롯이 없습니다 (최대 16ch)' })
+    return
+  }
   $q.dialog({ component: Aes67SourceAddDialog }).onOk(() => fetchSources())
 }
 </script>

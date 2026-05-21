@@ -273,11 +273,8 @@ function hasConnected(outGroup) {
   gap: 3px;
   color: #546e7a;
   padding: 4px;
-  opacity: 0;
-  overflow: hidden;
-}
-.route-btn--active {
   opacity: 1;
+  overflow: hidden;
 }
 .route-btn--active {
   border-color: #90caf9;

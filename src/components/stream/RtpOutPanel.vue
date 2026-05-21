@@ -1,6 +1,8 @@
 <script setup>
 import { computed } from 'vue'
 
+defineEmits(['refresh', 'edit'])
+
 const props = defineProps({
   s: { type: Object, required: true },
   detail: { type: Object, default: () => ({}) },

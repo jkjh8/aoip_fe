@@ -1,3 +1,7 @@
+<script>
+export default { inheritAttrs: false }
+</script>
+
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
@@ -98,7 +102,18 @@ function toggleEnabled(source) {
   })
 }
 
+function hasAvailableSourceSlot() {
+  const used = new Set(aoipState.aes67Sources.flatMap((s) => s.map ?? []))
+  for (let i = 0; i < 16; i += 2)
+    if (!used.has(i) && !used.has(i + 1)) return true
+  return false
+}
+
 function openAddSource() {
+  if (!hasAvailableSourceSlot()) {
+    $q.notify({ type: 'negative', message: '할당 가능한 채널 슬롯이 없습니다 (최대 16ch)' })
+    return
+  }
   $q.dialog({ component: Aes67SourceAddDialog }).onOk(() => refreshSources())
 }
 
@@ -108,6 +123,7 @@ function openEdit(source) {
 </script>
 
 <template>
+  <div v-bind="$attrs">
   <q-card style="background-color: #fff; width: 100%">
     <q-card-section class="card-header" style="border-top: 3px solid #7b1fa2">
       <span class="card-title">AES67</span>
@@ -212,7 +228,7 @@ function openEdit(source) {
   </q-card>
 
   <RoutingDialog v-model="routeDialogOpen" :route-target="routeTarget" />
-
+  </div>
 </template>
 
 <style scoped>
@@ -263,10 +279,10 @@ function openEdit(source) {
   gap: 3px;
   color: #546e7a;
   padding: 4px;
-  opacity: 0;
+  opacity: 1;
   overflow: hidden;
 }
-.route-btn--active { border-color: #90caf9; background: #e3f2fd; opacity: 1; }
+.route-btn--active { border-color: #90caf9; background: #e3f2fd; }
 
 .route-dots {
   display: flex;

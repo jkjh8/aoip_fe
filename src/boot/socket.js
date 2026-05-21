@@ -34,6 +34,15 @@ export default defineBoot(({ app, pinia }) => {
     if (data.connections) store.connections = data.connections
     if (data.rxStats) store.rxStats = data.rxStats
   })
+  socket.on('engine:status', (data) => {
+    store.engine = data
+  })
+  socket.on('bridges', (data) => {
+    store.bridges = data
+  })
+  socket.on('streams', (data) => {
+    store.streams = data
+  })
   socket.on('aes67:sources', (data) => {
     store.aes67Sources = Array.isArray(data) ? data : (data?.sources ?? [])
   })
@@ -48,9 +57,6 @@ export default defineBoot(({ app, pinia }) => {
   })
   socket.on('system:network', (data) => {
     if (data) Object.assign(settingsStore.network, data)
-  })
-  socket.on('streams', (data) => {
-    store.streams = data
   })
   socket.on('channels', (data) => {
     store.channels = data
