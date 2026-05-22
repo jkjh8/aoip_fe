@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { socket } from 'src/boot/socket'
+import { api } from 'src/boot/axios'
 
 export const useSettingsStore = defineStore('settings', {
   state: () => ({
@@ -7,6 +8,19 @@ export const useSettingsStore = defineStore('settings', {
     network: { mode: 'static', ip: '', subnet: '', gateway: '', dns: '', mac: '' },
     networkLoading: false,
     networkSaving: false,
+
+    // Serial
+    serial: {
+      enabled: false,
+      device: '/dev/ttyAMA0',
+      baudRate: 9600,
+      dataBits: 8,
+      stopBits: 1,
+      parity: 'none',
+      tcpPort: 4001,
+    },
+    serialLoading: false,
+    serialSaving: false,
 
     // System
     rebooting: false,
@@ -32,6 +46,32 @@ export const useSettingsStore = defineStore('settings', {
           resolve(res)
         })
       })
+    },
+
+    // ── Serial (HTTP) ─────────────────────────────────────────
+    async fetchSerial() {
+      this.serialLoading = true
+      try {
+        const { data } = await api.get('/serial/config')
+        Object.assign(this.serial, data)
+      } catch (e) {
+        console.error('[serial] fetch failed:', e)
+      } finally {
+        this.serialLoading = false
+      }
+    },
+
+    async saveSerial(payload) {
+      this.serialSaving = true
+      try {
+        await api.post('/serial/config', payload)
+        Object.assign(this.serial, payload)
+        return { ok: true }
+      } catch (e) {
+        return { ok: false, error: e?.response?.data?.error ?? 'Failed to save' }
+      } finally {
+        this.serialSaving = false
+      }
     },
 
     // ── System (socket) ───────────────────────────────────────

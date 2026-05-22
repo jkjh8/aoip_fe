@@ -40,11 +40,26 @@ function typeTag(label) {
   return label.substring(0, 3).toUpperCase()
 }
 
-// 출력 컬럼 헤더용 짧은 라벨 (마지막 단어만)
 function shortLabel(label) {
   const parts = label.trim().split(/\s+/)
   return parts[parts.length - 1]
 }
+
+function buildLabelMap(channels) {
+  const map = new Map()
+  let strCount = 0
+  channels.forEach((ch) => {
+    if (typeTag(ch.label) === 'STR') {
+      map.set(ch.id, String(++strCount))
+    } else {
+      map.set(ch.id, shortLabel(ch.label))
+    }
+  })
+  return map
+}
+
+const inputLabelMap = computed(() => buildLabelMap(inputs.value))
+const outputLabelMap = computed(() => buildLabelMap(outputs.value))
 </script>
 
 <template>
@@ -80,7 +95,7 @@ function shortLabel(label) {
                   <span class="mx-col-tag" :style="`background:${typeColor(out.label)}`">
                     {{ typeTag(out.label) }}
                   </span>
-                  <span class="mx-col-label">{{ shortLabel(out.label) }}</span>
+                  <span class="mx-col-label">{{ outputLabelMap.get(out.id) }}</span>
                 </div>
               </th>
             </tr>
@@ -92,7 +107,7 @@ function shortLabel(label) {
                 <span class="mx-col-tag" :style="`background:${typeColor(inp.label)}`">
                   {{ typeTag(inp.label) }}
                 </span>
-                <span class="mx-col-label">{{ shortLabel(inp.label) }}</span>
+                <span class="mx-col-label">{{ inputLabelMap.get(inp.id) }}</span>
               </td>
               <!-- 크로스포인트 셀 -->
               <td
