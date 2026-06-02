@@ -28,23 +28,24 @@ async function toggle(val) {
       $q.notify({
         type: 'negative',
         message: `Port ${serial.value.tcpPort} is already used by RTP In stream "${conflict.name ?? conflict.client}".`,
+        position: 'top',
       })
       return
     }
   }
   serial.value.enabled = val
   const res = await store.saveSerial({ ...serial.value })
-  if (res?.ok) $q.notify({ type: 'positive', message: 'Serial settings saved.' })
+  if (res?.ok) $q.notify({ type: 'positive', message: 'Serial settings saved.', position: 'top' })
   else {
     serial.value.enabled = !val
-    $q.notify({ type: 'negative', message: res?.error ?? 'Failed to save' })
+    $q.notify({ type: 'negative', message: res?.error ?? 'Failed to save', position: 'top' })
   }
 }
 </script>
 
 <template>
   <q-card flat bordered>
-    <q-card-section class="row no-wrap justify-between items-center q-py-sm">
+    <q-card-section class="row no-wrap justify-between items-center q-px-lg q-py-sm">
       <div class="row q-gutter-x-xs items-center">
         <q-icon name="cable" size="20px" color="blue-7" />
         <span class="st-panel-title">RS232 Serial Server</span>
@@ -87,6 +88,7 @@ async function toggle(val) {
           v-model="serial.baudRate"
           :options="baudRateOptions"
           :disable="serial.enabled"
+          dense
           outlined
           hide-bottom-space
           class="input-width"
@@ -98,6 +100,7 @@ async function toggle(val) {
           v-model="serial.dataBits"
           :options="dataBitsOptions"
           :disable="serial.enabled"
+          dense
           outlined
           hide-bottom-space
           class="input-width"
@@ -109,9 +112,10 @@ async function toggle(val) {
           v-model="serial.stopBits"
           :options="stopBitsOptions"
           :disable="serial.enabled"
-          class="input-width"
+          dense
           outlined
           hide-bottom-space
+          class="input-width"
         />
       </div>
       <div class="row no-wrap justify-between items-center q-mt-sm">
@@ -124,6 +128,7 @@ async function toggle(val) {
           emit-value
           map-options
           :disable="serial.enabled"
+          dense
           outlined
           hide-bottom-space
           class="input-width"

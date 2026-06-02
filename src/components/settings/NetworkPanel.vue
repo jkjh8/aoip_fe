@@ -15,14 +15,14 @@ async function save() {
   const payload =
     network.value.mode === 'dhcp' ? { mode: 'dhcp' } : { mode: 'static', ...network.value }
   const res = await store.saveNetwork(payload)
-  if (res?.ok) $q.notify({ type: 'positive', message: 'Network settings saved.' })
-  else $q.notify({ type: 'negative', message: res?.error ?? 'Failed to save' })
+  if (res?.ok) $q.notify({ type: 'positive', message: 'Network settings saved.', position: 'top' })
+  else $q.notify({ type: 'negative', message: res?.error ?? 'Failed to save', position: 'top' })
 }
 </script>
 
 <template>
   <q-card flat bordered>
-    <q-card-section class="row no-wrap justify-between items-center q-px-lg q-py-md">
+    <q-card-section class="row no-wrap justify-between items-center q-px-lg q-py-sm">
       <div class="row q-gutter-x-xs row justify-start items-center">
         <q-icon name="lan" size="20px" color="blue-7" />
         <span class="st-panel-title">Network Settings</span>
@@ -93,30 +93,19 @@ async function save() {
             lazy-rules
           />
         </div>
+        <q-card-actions align="right" class="q-px-none q-pt-sm">
+          <q-btn
+            class="q-mr-md"
+            style="width: 90px"
+            unelevated
+            color="blue-7"
+            size="md"
+            type="submit"
+            label="Save"
+          />
+        </q-card-actions>
       </q-form>
     </q-card-section>
-    <q-card-actions align="right" class="q-px-md">
-      <q-btn
-        class="q-mr-md"
-        style="width: 90px"
-        unelevated
-        color="blue-7"
-        size="md"
-        type="submit"
-        label="SAVE"
-      >
-      </q-btn>
-    </q-card-actions>
   </q-card>
 </template>
 
-<style scoped>
-:deep(.row-input .q-field__control) {
-  min-height: 28px !important;
-  height: 28px;
-}
-:deep(.row-input .q-field__native) {
-  padding: 0;
-  min-height: 28px;
-}
-</style>

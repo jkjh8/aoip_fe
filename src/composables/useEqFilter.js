@@ -14,7 +14,7 @@ const PR = 8
 const PT = 12
 const PB = 30
 const SVG_W = 700
-const SVG_H = 320
+const SVG_H = 420
 const PW = SVG_W - PL - PR
 const PH = SVG_H - PT - PB
 

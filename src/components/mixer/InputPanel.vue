@@ -1,7 +1,11 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { useAoipStore } from 'src/stores/aoip'
 import { useChannelPanel } from 'src/composables/useChannelPanel'
 import LevelMeter from './LevelMeter.vue'
+import InputDspDialog from './InputDspDialog.vue'
+
+const aoipStore = useAoipStore()
 
 const props = defineProps({
   sectionTitle: { type: String, default: null },
@@ -18,7 +22,6 @@ const {
   groupLabel,
   isMuted,
   doToggleMute,
-  groupGain,
   dragging,
   sliderVal,
   onSliderInput,
@@ -30,8 +33,8 @@ const {
   editingVal,
   commitEdit,
   onEditKeydown,
-  toDb,
   onDbClick,
+  toggleAnalogLink,
 } = useChannelPanel('input')
 
 const displaySections = computed(() =>
@@ -41,6 +44,30 @@ const displaySections = computed(() =>
 )
 
 const sectionColor = computed(() => displaySections.value[0]?.color ?? '#546e7a')
+
+const dspTargetId      = ref(null)
+const dspTargetRightId = ref(null)
+const dspOpen = ref(false)
+function openDsp(group) {
+  dspTargetId.value      = group.stereo ? group.left.id : group.ch.id
+  dspTargetRightId.value = group.stereo ? group.right.id
+    : (group.linked && group.pairFirst && group.partner ? group.partner.id : null)
+  dspOpen.value = true
+}
+const dspChannel      = computed(() => aoipStore.channels.inputs.find(c => c.id === dspTargetId.value) ?? null)
+const dspChannelRight = computed(() => aoipStore.channels.inputs.find(c => c.id === dspTargetRightId.value) ?? null)
+
+function mainCh(group) { return group.stereo ? group.left : group.ch }
+function dspEqClass(group) {
+  const dsp = mainCh(group)?.dsp
+  if (dsp?.eqBypass) return 'dchip--warn'
+  return dsp?.eq?.some(b => b.enabled) ? 'dchip--on' : ''
+}
+function dspChipClass(group, ...keys) {
+  const dsp = mainCh(group)?.dsp
+  for (const k of keys) { if (dsp?.[k]?.enabled) return 'dchip--on' }
+  return ''
+}
 </script>
 
 <template>
@@ -94,12 +121,17 @@ const sectionColor = computed(() => displaySections.value[0]?.color ?? '#546e7a'
     <q-card-section>
       <template v-for="section in displaySections" :key="section.title">
         <template v-for="group in section.groups" :key="groupKey(group)">
-          <div class="ch-strip" :class="{ muted: isMuted(group) }">
+          <div
+            class="ch-strip"
+            :class="{
+              muted: isMuted(group),
+              'ch-strip--slave': group.linked && !group.pairFirst,
+              'ch-strip--no-bottom': group.pairFirst,
+            }"
+          >
             <span class="ch-tag" :style="`background:${groupTag(group).color}`">
               {{ groupTag(group).text }}
             </span>
-            <div class="route-spacer q-mr-md" />
-
             <div class="ch-main">
               <div class="ch-info">
                 <span class="ch-name">{{ groupLabel(group) }}</span>
@@ -126,6 +158,12 @@ const sectionColor = computed(() => displaySections.value[0]?.color ?? '#546e7a'
                   @change="onSliderChange(group, $event.target.value)"
                 />
               </div>
+              <div v-if="groupTag(group).text !== 'STR'" class="dsp-bar" @click="openDsp(group)">
+                <span class="dchip" :class="dspChipClass(group, 'hpf')">HPF</span>
+                <span class="dchip" :class="dspEqClass(group)">EQ</span>
+                <span class="dchip" :class="dspChipClass(group, 'gate')">GATE</span>
+                <span class="dchip" :class="dspChipClass(group, 'comp')">COMP</span>
+              </div>
             </div>
 
             <input
@@ -136,7 +174,7 @@ const sectionColor = computed(() => displaySections.value[0]?.color ?? '#546e7a'
               @blur="commitEdit(group)"
               @keydown="onEditKeydown($event, group)"
             />
-            <span v-else class="db-val" @click="onDbClick(group)">{{ toDb(groupGain(group)) }}</span>
+            <span v-else class="db-val" @click="onDbClick(group)">{{ fmtSlider(sliderVal(group)) }}</span>
 
             <q-btn
               class="mute-btn"
@@ -153,26 +191,75 @@ const sectionColor = computed(() => displaySections.value[0]?.color ?? '#546e7a'
               :channels="
                 group.stereo
                   ? [
-                      { level: group.left.level, muted: isMuted(group), label: 'L' },
-                      { level: group.right.level, muted: isMuted(group), label: 'R' },
+                      { level: group.left?.level ?? -Infinity, muted: isMuted(group), label: 'L' },
+                      { level: group.right?.level ?? -Infinity, muted: isMuted(group), label: 'R' },
                     ]
-                  : [{ level: group.ch.level, muted: isMuted(group) }]
+                  : [{ level: group.ch?.level ?? -Infinity, muted: isMuted(group) }]
               "
               :title="groupLabel(group)"
             />
           </div>
+          <div v-if="group.pairFirst" class="link-connector">
+            <button
+              class="link-btn"
+              :class="{ 'link-btn--linked': group.linked }"
+              @click="toggleAnalogLink(group)"
+            >
+              <q-icon :name="group.linked ? 'link' : 'link_off'" size="11px" />
+              <span>{{ group.linked ? 'Linked' : 'Link' }}</span>
+            </button>
+          </div>
         </template>
       </template>
     </q-card-section>
+
+    <InputDspDialog
+      v-model="dspOpen"
+      :channel="dspChannel"
+      :channel-right="dspChannelRight"
+    />
   </q-card>
 </template>
 
 <style scoped>
-.route-spacer {
-  width: 44px;
-  height: 40px;
-  flex-shrink: 0;
+.ch-strip--no-bottom { border-bottom: none !important; }
+.link-connector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 1px;
+  background: #e4e6ea;
+  margin: 0;
 }
+.link-btn {
+  background: #f5f7fa;
+  border: 1px solid #b0bec5;
+  border-radius: 3px;
+  padding: 1px 5px;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 600;
+  color: #78909c;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  line-height: 1;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+}
+.link-btn:hover { background: #e3f2fd; border-color: #90caf9; color: #1976d2; }
+.link-btn--linked { background: #e3f2fd; border-color: #90caf9; color: #1565c0; font-weight: 700; }
+.link-btn--linked:hover { background: #ffebee; border-color: #ef9a9a; color: #c62828; }
+.ch-strip--slave { opacity: 0.45; pointer-events: none; }
+.dsp-bar { display: flex; gap: 2px; cursor: pointer; padding: 3px 0 1px; flex-shrink: 0; }
+.dchip {
+  font-size: 7px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;
+  padding: 1px 4px; border-radius: 2px; border: 1px solid #d0d8e0;
+  background: #f5f7fa; color: #90a4ae; transition: all 0.1s;
+}
+.dsp-bar:hover .dchip { border-color: #90a4ae; color: #546e7a; }
+.dchip--on { background: #e8f5e9; border-color: #81c78455; color: #388e3c; }
+.dchip--warn { background: #fff3e0; border-color: #f57c0055; color: #e65100; }
 
 .card-header {
   display: flex;

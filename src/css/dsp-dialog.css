@@ -1,0 +1,92 @@
+/* Shared styles for InputDspDialog, OutputDspDialog */
+
+.dsp-hd {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  background: #eaecf3;
+  border-bottom: 1px solid #d0d8e8;
+  flex-shrink: 0;
+}
+.dsp-hd-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #5a6a8a;
+  text-transform: uppercase;
+}
+.dsp-hd-ch {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1e2840;
+  margin-left: 4px;
+}
+.dsp-hd-ch--r {
+  color: #6a7a9a;
+  margin-left: 0;
+}
+.dsp-hd-sep { color: #a0b0c8; }
+
+.proc-sum {
+  display: flex;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #eaecf3;
+  border-bottom: 1px solid #d0d8e8;
+  flex-shrink: 0;
+}
+.pchip {
+  flex: 1;
+  border-radius: 6px !important;
+  border: 1px solid #c8d2e4 !important;
+  background: #f4f6fb !important;
+  transition: border-color 0.15s;
+}
+.pchip:hover { border-color: #9aaac8 !important; }
+.pchip--cur {
+  border-color: #4a9eff !important;
+  background: #e8f0ff !important;
+}
+.pchip .q-btn__content {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.pled {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.pled--off { background: #c8d2e4; }
+.pled--ok {
+  background: #52c98a;
+  box-shadow: 0 0 5px #52c98a99;
+}
+
+.pname {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: #7a8aaa;
+  text-transform: uppercase;
+}
+
+.dsp-body {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.center-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: #f4f6fb;
+  overflow: hidden;
+  padding-right: 6px;
+}

@@ -7,7 +7,6 @@ import {
   gainToY,
   xToFreq,
   yToGain,
-  bandCoeffs,
   useEqCurve,
   EQ_CONSTANTS,
 } from 'src/composables/useEqFilter'
@@ -29,7 +28,7 @@ const COLORS = ['#ffa726', '#66bb6a', '#42a5f5', '#ab47bc']
 const BAND_LABELS = ['Band 1', 'Band 2', 'Band 3', 'Band 4']
 
 const HPF_COLOR = '#ef5350'
-const HPF_SLOPES = [12, 24]
+const HPF_SLOPES = [12, 24, 48]
 
 // 밴드별 기본 주파수 배열
 const BAND_FREQS = [100, 500, 2000, 12000]
@@ -88,15 +87,15 @@ function initFromChannel() {
     dsp.eq.forEach((src, i) => {
       if (!bands.value[i]) return
       const def = DEFAULT_BANDS[i]
-      const freq = Number(src.freq)
-      const gain = Number(src.gain)
+      const freq = Number(src.fc ?? src.freq)
+      const gain = Number(src.gainDb ?? src.gain)
       const q = Number(src.q)
       Object.assign(bands.value[i], {
         enabled: src.enabled ?? false,
         freq: isFinite(freq) ? freq : def.freq,
         gain: isFinite(gain) ? gain : def.gain,
         q: isFinite(q) && q > 0 ? q : def.q,
-        type: src.bandType ?? src.type ?? def.type,
+        type: src.type ?? src.bandType ?? def.type,
       })
     })
   } else {
@@ -105,7 +104,7 @@ function initFromChannel() {
   if (dsp?.hpf) {
     hpf.value = {
       enabled: dsp.hpf.enabled ?? false,
-      freq: dsp.hpf.freq ?? 80,
+      freq: dsp.hpf.fc ?? dsp.hpf.freq ?? 80,
       slope: dsp.hpf.slope ?? 12,
     }
   } else {
@@ -156,12 +155,12 @@ function throttledSendHpf() {
 function sendHpf() {
   if (!props.channel) return
   const ids = [props.channel?.id, props.channelRight?.id].filter(Boolean)
-  const hpfState = { enabled: hpf.value.enabled, freq: hpf.value.freq, slope: hpf.value.slope }
+  const params = { enabled: hpf.value.enabled, slope: hpf.value.slope, fc: hpf.value.freq }
   for (const id of ids) {
-    socket.emit('dsp:hpf', { id, type: props.channelType, ...hpfState })
+    socket.emit('dsp:hpf', { id, params })
     const allChs = [...aoipStore.channels.inputs, ...aoipStore.channels.outputs]
     const ch = allChs.find((c) => c.id === id)
-    if (ch?.dsp) ch.dsp.hpf = { ...hpfState }
+    if (ch?.dsp) ch.dsp.hpf = { enabled: params.enabled, slope: params.slope, fc: params.fc }
   }
 }
 
@@ -315,7 +314,18 @@ function onHandleWheel(e, i) {
 function emitEq(payload) {
   const ids = [props.channel?.id, props.channelRight?.id].filter(Boolean)
   for (const id of ids) {
-    socket.emit('dsp:eq', { ...payload, id })
+    socket.emit('dsp:eq:band', {
+      type: props.channelType,
+      id,
+      band: payload.band,
+      params: {
+        enabled: payload.enabled,
+        type: payload.bandType,
+        fc: payload.freq,
+        q: payload.q,
+        gainDb: payload.gain,
+      },
+    })
   }
 }
 
@@ -323,16 +333,13 @@ function sendBand(bandIdx) {
   if (!props.channel) return
   const b = bands.value[bandIdx]
   if (!isFinite(b.freq) || !isFinite(b.gain) || !isFinite(b.q)) return
-  const coeffs = bandCoeffs(b)
   emitEq({
-    type: props.channelType,
-    band: bandIdx,
+    band: bandIdx + 1,
     enabled: b.enabled,
     freq: b.freq,
     gain: b.gain,
     q: b.q,
     bandType: b.type,
-    ...(coeffs ?? {}),
   })
 }
 
@@ -683,29 +690,31 @@ const hpfFreqModel = computed({
             <span class="bp-label">FLAT</span>
           </div>
 
-          <q-separator vertical class="q-mx-xs" style="height: 24px" />
+          <template v-if="channelType === 'input'">
+            <q-separator vertical class="q-mx-xs" style="height: 24px" />
 
-          <!-- HPF pill -->
-          <div
-            class="band-pill"
-            :class="{ 'band-pill--sel': hpfSelected, 'band-pill--on': hpf.enabled }"
-            style="--bc: #ef5350"
-            @click="((hpfSelected = true), (selectedIdx = -1))"
-          >
-            <span class="bp-dot" />
-            <span class="bp-label">HPF</span>
-            <q-btn
-              flat
-              round
-              dense
-              size="xs"
-              :icon="hpf.enabled ? 'radio_button_checked' : 'radio_button_unchecked'"
-              :style="`color: #ef5350; opacity: ${hpf.enabled ? 1 : 0.4}`"
-              @click.stop="toggleHpf"
-            />
-          </div>
+            <!-- HPF pill -->
+            <div
+              class="band-pill"
+              :class="{ 'band-pill--sel': hpfSelected, 'band-pill--on': hpf.enabled }"
+              style="--bc: #ef5350"
+              @click="((hpfSelected = true), (selectedIdx = -1))"
+            >
+              <span class="bp-dot" />
+              <span class="bp-label">HPF</span>
+              <q-btn
+                flat
+                round
+                dense
+                size="xs"
+                :icon="hpf.enabled ? 'radio_button_checked' : 'radio_button_unchecked'"
+                :style="`color: #ef5350; opacity: ${hpf.enabled ? 1 : 0.4}`"
+                @click.stop="toggleHpf"
+              />
+            </div>
 
-          <q-separator vertical class="q-mx-xs" style="height: 24px" />
+            <q-separator vertical class="q-mx-xs" style="height: 24px" />
+          </template>
 
           <div
             v-for="(h, i) in handles"
@@ -730,7 +739,7 @@ const hpfFreqModel = computed({
         </div>
 
         <!-- HPF controls -->
-        <div v-if="hpfSelected" class="band-detail q-mt-sm">
+        <div v-if="hpfSelected && channelType === 'input'" class="band-detail q-mt-sm">
           <div class="row items-center q-mb-sm">
             <span class="detail-title" :style="`color:${HPF_COLOR}`">HPF</span>
             <q-space />

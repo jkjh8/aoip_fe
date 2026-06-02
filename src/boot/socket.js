@@ -9,8 +9,22 @@ const serverUrl = process.env.DEV
 
 export const socket = io(serverUrl, {
   autoConnect: true,
-  reconnectionDelay: 2000,
+  transports: ['websocket'],
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+  timeout: 10000,
 })
+
+function mergeDsp(newChannels, store) {
+  for (const ch of newChannels.inputs ?? []) {
+    const existing = store.channels.inputs.find((c) => c.id === ch.id)
+    if (existing?.dsp != null) ch.dsp = existing.dsp
+  }
+  for (const ch of newChannels.outputs ?? []) {
+    const existing = store.channels.outputs.find((c) => c.id === ch.id)
+    if (existing?.dsp != null) ch.dsp = existing.dsp
+  }
+}
 
 export default defineBoot(({ app, pinia }) => {
   app.config.globalProperties.$socket = socket
@@ -21,6 +35,9 @@ export default defineBoot(({ app, pinia }) => {
   socket.on('connect', () => {
     store.connected = true
     settingsStore.fetchNetwork()
+    socket.emit('dsp:mode:get', (res) => {
+      if (res?.ok && res.mode) store.dspMode = res.mode
+    })
   })
   socket.on('disconnect', () => {
     store.connected = false
@@ -30,6 +47,7 @@ export default defineBoot(({ app, pinia }) => {
     if (data.aes67) store.aes67 = data.aes67
     store.bridges = data.bridges
     store.streams = data.streams
+    mergeDsp(data.channels, store)
     store.channels = data.channels
     if (data.connections) store.connections = data.connections
     if (data.rxStats) store.rxStats = data.rxStats
@@ -58,8 +76,27 @@ export default defineBoot(({ app, pinia }) => {
   socket.on('system:network', (data) => {
     if (data) Object.assign(settingsStore.network, data)
   })
+  socket.on('dsp:mode', (mode) => {
+    if (mode && (mode.input || mode.output)) store.dspMode = mode
+  })
   socket.on('channels', (data) => {
+    mergeDsp(data, store)
     store.channels = data
+  })
+  socket.on('dsp:changed', ({ type, id, key, params }) => {
+    console.log('dsp:changed', { type, id, key, params })
+    const list = type === 'input' ? store.channels.inputs : store.channels.outputs
+    const ch = list.find((c) => c.id === id)
+    if (!ch) return
+    if (!ch.dsp) ch.dsp = {}
+    if (key === 'eq' && params?.band != null) {
+      if (!Array.isArray(ch.dsp.eq)) ch.dsp.eq = []
+      const idx = params.band - 1
+      if (!ch.dsp.eq[idx]) ch.dsp.eq[idx] = {}
+      Object.assign(ch.dsp.eq[idx], params)
+    } else {
+      ch.dsp[key] = params
+    }
   })
   socket.on('levels', (data) => {
     for (const { id, level } of data.inputs ?? []) {

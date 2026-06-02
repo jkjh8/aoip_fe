@@ -1,6 +1,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { useAoipStore } from 'src/stores/aoip'
 import { useChannelControl, gainToDb, dbToGain } from './useChannelControl'
+import { socket } from 'src/boot/socket'
 
 export function useChannelPanel(channelType) {
   const aoipState = useAoipStore()
@@ -9,6 +10,18 @@ export function useChannelPanel(channelType) {
   const channels = computed(() =>
     channelType === 'input' ? aoipState.filteredInputs : aoipState.filteredOutputs,
   )
+
+  const isI2sLinked = computed(() => aoipState.dspMode?.[channelType] === 'stereo')
+
+  function toggleAnalogLink() {
+    const next = isI2sLinked.value ? 'mono' : 'stereo'
+    console.log('[toggleAnalogLink]', channelType, '→', next, 'connected:', socket.connected)
+    socket.emit('dsp:mode:set', { direction: channelType, mode: next }, (res) => {
+      console.log('[dsp:mode:set ack]', res)
+      if (res?.ok && res.mode) aoipState.dspMode = res.mode
+      else if (res && !res.ok) console.warn('[dsp:mode:set] failed:', res.error)
+    })
+  }
 
   const inputRefs = ref({})
   const dragging = ref({})
@@ -67,6 +80,19 @@ export function useChannelPanel(channelType) {
           if (next) { groups.push({ stereo: true, left: ch, right: next }); i += 2 }
           else       { groups.push({ stereo: false, ch }); i++ }
         }
+      } else if (type === 'analog') {
+        const linked = isI2sLinked.value
+        for (let i = 0; i < typeChs.length; i++) {
+          const ch = typeChs[i]
+          // Only the first I2S pair (Analog 1 & 2) is link-capable; backend mirrors when stereo.
+          if (i === 0 && typeChs[1]) {
+            groups.push({ stereo: false, ch, pairId: ch.id, pairFirst: true, linked, partner: typeChs[1] })
+          } else if (i === 1 && typeChs[0]) {
+            groups.push({ stereo: false, ch, pairId: typeChs[0].id, pairFirst: false, linked, partner: typeChs[0] })
+          } else {
+            groups.push({ stereo: false, ch })
+          }
+        }
       } else {
         for (const ch of typeChs) groups.push({ stereo: false, ch })
       }
@@ -114,6 +140,7 @@ export function useChannelPanel(channelType) {
       toggleMute(group.left.id, muted)
       toggleMute(group.right.id, muted)
     } else {
+      // I2S stereo link mirrors mute on the backend, so a single call is enough.
       toggleMute(group.ch.id, group.ch.muted)
     }
   }
@@ -132,6 +159,9 @@ export function useChannelPanel(channelType) {
 
   function onSliderInput(group, val) {
     dragging.value[groupKey(group)] = Number(val)
+    if (group.linked && group.partner) {
+      dragging.value[group.partner.id] = Number(val)
+    }
   }
 
   function thumbLeft(val) {
@@ -201,6 +231,7 @@ export function useChannelPanel(channelType) {
     channels,
     channelGroups,
     channelSections,
+    toggleAnalogLink,
     groupLabel,
     getChannelType,
     inputRefs,

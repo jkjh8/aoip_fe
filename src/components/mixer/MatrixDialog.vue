@@ -70,8 +70,8 @@ const outputLabelMap = computed(() => buildLabelMap(outputs.value))
   >
     <q-card class="mx-card">
       <!-- 헤더 -->
-      <q-card-section class="mx-header">
-        <span class="mx-title">Crosspoint Matrix</span>
+      <q-card-section class="row items-center justify-between q-px-md q-py-sm">
+        <span class="st-panel-title">Crosspoint Matrix</span>
         <q-btn flat dense round icon="close" size="sm" @click="emit('update:modelValue', false)" />
       </q-card-section>
       <q-separator />
@@ -133,20 +133,6 @@ const outputLabelMap = computed(() => buildLabelMap(outputs.value))
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-}
-
-.mx-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 16px 8px;
-  flex-shrink: 0;
-}
-.mx-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: #37474f;
-  letter-spacing: 0.3px;
 }
 
 /* ── 스크롤 영역 ── */

@@ -1,0 +1,135 @@
+/* Shared styles for CompTab, GateTab, LimiterTab */
+
+.dyn-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+  min-height: 0;
+}
+.dyn-graph {
+  width: 650px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 14px;
+  border-right: 1px solid #d0d8e8;
+  gap: 8px;
+}
+.graph-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #8a9ab4;
+  text-transform: uppercase;
+}
+.dyn-svg {
+  display: block;
+  border-radius: 4px;
+  user-select: none;
+}
+.drag-ew { cursor: ew-resize; }
+.drag-ns { cursor: ns-resize; }
+
+.gr-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+}
+.gr-lbl {
+  font-size: 16px;
+  font-weight: 700;
+  color: #7a8aa4;
+  letter-spacing: 0.5px;
+}
+.gr-bar-track {
+  flex: 1;
+  height: 5px;
+  background: #d8e0ee;
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+.gr-bar-fill {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.08s linear;
+}
+.gr-val {
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.dyn-params {
+  flex: 1;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  background: #f4f6fb;
+}
+.ctrl-hdr {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #d0d8e8;
+}
+.ctrl-name {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+}
+.onoff {
+  font-size: 10px;
+  font-weight: 700;
+  margin-left: auto;
+}
+.onoff--off { color: #9aaac0; }
+
+.param-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.param-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.param-lbl {
+  font-size: 10px;
+  font-weight: 600;
+  color: #5a6a8a;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  width: 76px;
+  flex-shrink: 0;
+}
+
+.dsp-num-inp { width: 110px; }
+.dsp-num-inp .q-field__control {
+  height: 28px;
+  background: #ffffff;
+}
+.dsp-num-inp input {
+  font-size: 16px;
+  font-family: 'Courier New', monospace;
+  text-align: center;
+  color: #1e2840;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.dsp-num-inp input::-webkit-inner-spin-button { display: none; }
+.dsp-num-inp .q-field__suffix {
+  font-size: 12px;
+  color: #8a9ab4;
+  padding-left: 2px;
+}

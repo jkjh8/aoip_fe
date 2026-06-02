@@ -8,6 +8,8 @@ const props = defineProps({
     // Each item: { level?: Number, muted?: Boolean, label?: String }
   },
   title: { type: String, default: null },
+  valueLabel: { type: String, default: null },
+  noTooltip: { type: Boolean, default: false },
 })
 
 function levelPct(level, muted) {
@@ -50,10 +52,11 @@ onUnmounted(() => peakTimers.forEach(clearTimeout))
 <template>
   <div class="lm-wrap" :style="`--bar-w:${channels.length === 1 ? 14 : 6}px`">
     <q-tooltip
-      :delay="200"
-      anchor="top middle"
-      self="bottom middle"
-      :offset="[0, 10]"
+      v-if="!noTooltip"
+      :delay="150"
+      anchor="center right"
+      self="center left"
+      :offset="[8, 0]"
       class="bg-grey-9"
       style="padding: 0; overflow: hidden; border-radius: 6px"
     >
@@ -112,32 +115,51 @@ onUnmounted(() => peakTimers.forEach(clearTimeout))
       </div>
     </q-tooltip>
 
-    <div
-      v-for="(ch, i) in channels"
-      :key="i"
-      class="lm-bar"
-    >
+    <div class="lm-bars">
       <div
-        class="lm-fill"
-        :style="`height:${levelPct(ch.level, ch.muted)}%; background:${levelColor(ch.level)}`"
-      />
-      <div
-        v-if="peakLevels[i] != null"
-        class="lm-peak"
-        :style="`bottom:${levelPct(peakLevels[i], false)}%; background:${levelColor(peakLevels[i])}`"
-      />
+        v-for="(ch, i) in channels"
+        :key="i"
+        class="lm-bar"
+      >
+        <div
+          class="lm-fill"
+          :style="`height:${levelPct(ch.level, ch.muted)}%; background:${levelColor(ch.level)}`"
+        />
+        <div
+          v-if="peakLevels[i] != null"
+          class="lm-peak"
+          :style="`bottom:${levelPct(peakLevels[i], false)}%; background:${levelColor(peakLevels[i])}`"
+        />
+      </div>
     </div>
+    <div v-if="valueLabel" class="lm-val-label">{{ valueLabel }}</div>
   </div>
 </template>
 
 <style scoped>
 .lm-wrap {
   display: flex;
+  flex-direction: column;
   gap: 2px;
   align-self: stretch;
   flex-shrink: 0;
-  padding: 6px 0;
+  padding: 6px 8px;
   cursor: default;
+}
+.lm-bars {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+  align-items: stretch;
+}
+.lm-val-label {
+  font-size: 9px;
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  color: #546e7a;
+  text-align: center;
+  white-space: nowrap;
+  padding-top: 2px;
 }
 
 .lm-bar {
