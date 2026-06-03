@@ -1,10 +1,12 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useDialogPluginComponent } from 'quasar'
 import { socket } from 'src/boot/socket'
 import { useAoipStore } from 'src/stores/aoip'
 
 defineEmits([...useDialogPluginComponent.emits])
+const { t } = useI18n()
 const { dialogRef, onDialogHide, onDialogOK } = useDialogPluginComponent()
 
 const aoipState = useAoipStore()
@@ -79,16 +81,16 @@ function sdpCodec(sdp) {
 
 function confirm() {
   const f = form.value
-  if (!f.name.trim()) { error.value = '이름을 입력하세요'; return }
-  if (tab.value === 'browse' && !selectedRemote.value) { error.value = '소스를 선택하세요'; return }
+  if (!f.name.trim()) { error.value = t('aes67.errorNameRequired'); return }
+  if (tab.value === 'browse' && !selectedRemote.value) { error.value = t('aes67.errorSourceRequired'); return }
   if ((tab.value === 'url' || tab.value === 'sdp') && !f.url.trim() && !f.rawSdp.trim()) {
-    error.value = 'URL 또는 SDP를 입력하세요'; return
+    error.value = t('aes67.errorUrlOrSdp'); return
   }
   const map = Array.from({ length: f.chUnit }, (_, i) => f.chStart + i)
   const mapSet = new Set(map)
   const conflict = sinks.value.find((s) => (s.map ?? []).some((ch) => mapSet.has(ch)))
   if (conflict) {
-    error.value = `채널이 "${conflict.name}"과 겹칩니다 (${conflict.map.filter((ch) => mapSet.has(ch)).map((ch) => `Ch ${ch + 1}`).join(', ')})`
+    error.value = t('aes67.errorChannelConflict', { name: conflict.name, channels: conflict.map.filter((ch) => mapSet.has(ch)).map((ch) => `Ch ${ch + 1}`).join(', ') })
     return
   }
   busy.value = true
@@ -111,24 +113,24 @@ function confirm() {
   <q-dialog ref="dialogRef" persistent @hide="onDialogHide">
     <q-card style="min-width: 460px; max-width: 95vw">
       <q-card-section class="dialog-head">
-        <span class="dialog-title">Add AES67 Sink (입력)</span>
+        <span class="dialog-title">{{ t('aes67.addSinkTitle') }}</span>
       </q-card-section>
       <q-separator />
       <q-tabs v-model="tab" dense align="left" class="q-px-md q-pt-sm" active-color="primary" indicator-color="primary">
-        <q-tab name="browse" label="네트워크 탐색" icon="wifi_find" />
-        <q-tab name="url" label="URL" icon="link" />
-        <q-tab name="sdp" label="SDP 직접 입력" icon="code" />
+        <q-tab name="browse" :label="t('aes67.tabDiscover')" icon="wifi_find" />
+        <q-tab name="url" :label="t('aes67.tabUrl')" icon="link" />
+        <q-tab name="sdp" :label="t('aes67.tabSdp')" icon="code" />
       </q-tabs>
       <q-separator />
       <q-card-section class="dialog-body">
         <q-tab-panels v-model="tab" animated>
           <q-tab-panel name="browse" class="q-pa-none">
             <div class="browse-toolbar">
-              <span class="browse-count">{{ browseList.length }}개 발견</span>
+              <span class="browse-count">{{ t('aes67.discoveredCount', { count: browseList.length }) }}</span>
               <q-btn flat dense round size="sm" icon="refresh" color="grey-6" :loading="browseBusy" @click="doBrowse" />
             </div>
             <div v-if="browseBusy" class="browse-loading"><q-spinner size="24px" color="primary" /></div>
-            <div v-else-if="!browseList.length" class="browse-empty">네트워크에서 AES67 소스를 찾을 수 없습니다</div>
+            <div v-else-if="!browseList.length" class="browse-empty">{{ t('aes67.noDiscovered') }}</div>
             <div v-else class="browse-list">
               <div v-for="src in browseList" :key="src.id" class="browse-card"
                 :class="{ 'browse-card--sel': selectedRemote?.id === src.id }" @click="selectRemote(src)">
@@ -143,45 +145,45 @@ function confirm() {
           </q-tab-panel>
           <q-tab-panel name="url" class="q-pa-none">
             <div class="field-group q-pt-sm">
-              <label class="field-label">SDP URL</label>
+              <label class="field-label">{{ t('aes67.sdpUrl') }}</label>
               <q-input v-model="form.url" dense outlined placeholder="http://192.168.0.x:8080/api/source/sdp/0" class="font-mono" />
             </div>
           </q-tab-panel>
           <q-tab-panel name="sdp" class="q-pa-none">
             <div class="field-group q-pt-sm">
-              <label class="field-label">SDP 내용</label>
+              <label class="field-label">{{ t('aes67.sdpContent') }}</label>
               <q-input v-model="form.rawSdp" dense outlined type="textarea" :rows="6" placeholder="v=0&#10;o=- ..." class="font-mono" />
             </div>
           </q-tab-panel>
         </q-tab-panels>
         <q-separator class="q-my-sm" />
         <div class="field-group">
-          <label class="field-label">이름</label>
-          <q-input v-model="form.name" dense outlined placeholder="Sink 이름" />
+          <label class="field-label">{{ t('aes67.name') }}</label>
+          <q-input v-model="form.name" dense outlined :placeholder="t('aes67.sinkName')" />
         </div>
         <div class="dlg-row">
           <div class="field-group" style="flex:1">
-            <label class="field-label">Delay (samples)</label>
+            <label class="field-label">{{ t('aes67.delaySamples') }}</label>
             <q-select v-model="form.delay" :options="delayOptions" emit-value map-options dense outlined />
           </div>
           <div class="field-group" style="flex:1">
-            <label class="field-label">채널 단위</label>
+            <label class="field-label">{{ t('aes67.channelMode') }}</label>
             <q-select v-model="form.chUnit" :options="chUnitOptions" emit-value map-options dense outlined
               @update:model-value="(val) => { form.chStart = firstAvailableSlot(val) }" />
           </div>
           <div class="field-group" style="flex:2">
-            <label class="field-label">채널 슬롯</label>
+            <label class="field-label">{{ t('aes67.channelSlot') }}</label>
             <q-select v-model="form.chStart" :options="chSlotOptions(form.chUnit)"
               emit-value map-options dense outlined option-disable="disable" />
           </div>
         </div>
-        <q-toggle v-model="form.ignoreRefclk" label="GM ID 무시 (Ignore refclk GMID)" color="primary" dense />
+        <q-toggle v-model="form.ignoreRefclk" :label="t('aes67.ignoreGmId')" color="primary" dense />
         <p v-if="error" class="form-error">{{ error }}</p>
       </q-card-section>
       <q-separator />
       <q-card-actions align="right" class="dialog-actions">
-        <q-btn flat label="취소" color="grey-7" v-close-popup />
-        <q-btn unelevated label="추가" color="green-7" :loading="busy" @click="confirm" />
+        <q-btn flat :label="t('common.cancel')" color="grey-7" v-close-popup />
+        <q-btn unelevated :label="t('common.add')" color="green-7" :loading="busy" @click="confirm" />
       </q-card-actions>
     </q-card>
   </q-dialog>

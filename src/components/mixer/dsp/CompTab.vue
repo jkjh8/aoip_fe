@@ -1,9 +1,11 @@
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { socket } from 'src/boot/socket'
 import { useAoipStore } from 'src/stores/aoip'
 import 'src/css/dsp-dynamics.css'
 
+const { t } = useI18n()
 const aoipStore = useAoipStore()
 
 const props = defineProps({
@@ -28,12 +30,12 @@ const enabled = ref(false)
 const comp = reactive({ ...DEFAULTS })
 
 const PARAMS = [
-  { key: 'threshold', label: 'Threshold', min: -60, max: 0, step: 0.5, unit: 'dB' },
-  { key: 'ratio', label: 'Ratio', min: 1, max: 20, step: 0.1, unit: ':1' },
-  { key: 'knee', label: 'Knee', min: 0, max: 24, step: 0.5, unit: 'dB' },
-  { key: 'attackMs', label: 'Attack', min: 0.1, max: 500, step: 0.1, unit: 'ms' },
-  { key: 'releaseMs', label: 'Release', min: 1, max: 5000, step: 10, unit: 'ms' },
-  { key: 'makeupDb', label: 'Makeup', min: 0, max: 40, step: 0.5, unit: 'dB' },
+  { key: 'threshold', i18nKey: 'dsp.threshold', min: -60, max: 0, step: 0.5, unit: 'dB' },
+  { key: 'ratio', i18nKey: 'dsp.ratio', min: 1, max: 20, step: 0.1, unit: ':1' },
+  { key: 'knee', i18nKey: 'dsp.knee', min: 0, max: 24, step: 0.5, unit: 'dB' },
+  { key: 'attackMs', i18nKey: 'dsp.attack', min: 0.1, max: 500, step: 0.1, unit: 'ms' },
+  { key: 'releaseMs', i18nKey: 'dsp.release', min: 1, max: 5000, step: 10, unit: 'ms' },
+  { key: 'makeupDb', i18nKey: 'dsp.makeup', min: 0, max: 40, step: 0.5, unit: 'dB' },
 ]
 
 const grVal = computed(() => Math.max(0, Math.min(30, props.grDb)))
@@ -167,7 +169,7 @@ defineExpose({ enabled })
         <div class="gr-bar-track"><div class="gr-bar-fill" :style="`width:${grPct}%`" /></div>
         <span class="gr-val">{{ fmtGr(grVal) }} dB</span>
       </div>
-      <div class="graph-lbl">Transfer Curve</div>
+      <div class="graph-lbl">{{ t('dsp.transferCurve') }}</div>
       <svg :ref="setSvgRef" :viewBox="`0 0 ${W} ${H}`" width="100%" class="dyn-svg">
         <rect x="0" y="0" :width="W" :height="H" fill="#181b22" />
         <line
@@ -276,12 +278,12 @@ defineExpose({ enabled })
         />
         <span class="ctrl-name" style="color: #e65100">COMP</span>
         <span class="onoff" :class="enabled ? 'onoff--on' : 'onoff--off'">{{
-          enabled ? 'ON' : 'OFF'
+          enabled ? t('common.on') : t('common.off')
         }}</span>
       </div>
       <div class="param-list">
         <div v-for="d in PARAMS" :key="d.key" class="param-row">
-          <span class="param-lbl">{{ d.label }}</span>
+          <span class="param-lbl">{{ t(d.i18nKey) }}</span>
           <q-input
             v-model.number="comp[d.key]"
             type="number"

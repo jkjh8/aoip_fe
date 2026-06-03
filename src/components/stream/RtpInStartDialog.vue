@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useDialogPluginComponent } from 'quasar'
 
 const props = defineProps({
@@ -9,13 +10,14 @@ const props = defineProps({
 
 defineEmits([...useDialogPluginComponent.emits])
 
+const { t } = useI18n()
 const { dialogRef, onDialogHide, onDialogOK, onDialogCancel } = useDialogPluginComponent()
 
 const sampleRateOptions = [{ label: '44.1k', value: 44100 }, { label: '48k', value: 48000 }]
 const bitDepthOptions   = [{ label: '16-bit', value: 16 }, { label: '24-bit', value: 24 }]
-const channelOptions    = [{ label: 'Mono', value: 1 }, { label: 'Stereo', value: 2 }]
+const channelOptions    = computed(() => [{ label: t('common.mono'), value: 1 }, { label: t('common.stereo'), value: 2 }])
 const protocolOptions   = [{ label: 'RTP', value: 'rtp' }, { label: 'UDP Raw', value: 'raw' }]
-const formatOptions     = [{ label: 'Auto Detect', value: 'auto' }, { label: 'Manual', value: 'manual' }]
+const formatOptions     = computed(() => [{ label: t('stream.auto'), value: 'auto' }, { label: t('stream.manual'), value: 'manual' }])
 const codecOptions      = [{ label: 'MP3', value: 'mp3' }, { label: 'Opus', value: 'opus' }, { label: 'WAV', value: 'wav' }]
 
 const protocol   = ref(props.detail?.protocol   ?? 'rtp')
@@ -65,7 +67,7 @@ function onOk() {
     <q-card style="min-width: 360px; max-width: 440px">
       <q-card-section class="row items-center q-pb-sm">
         <q-icon name="play_circle" color="positive" size="sm" class="q-mr-sm" />
-        <span class="text-subtitle1 text-weight-bold">Start Stream</span>
+        <span class="text-subtitle1 text-weight-bold">{{ t('stream.startStream') }}</span>
         <span v-if="name" class="q-ml-sm text-grey-6 text-caption">{{ name }}</span>
       </q-card-section>
 
@@ -74,13 +76,13 @@ function onOk() {
       <q-card-section class="q-gutter-y-md q-pt-md">
         <!-- Protocol -->
         <div>
-          <div class="field-label">Protocol</div>
+          <div class="field-label">{{ t('stream.protocol') }}</div>
           <q-select v-model="protocol" :options="protocolOptions" emit-value map-options dense outlined class="q-mt-xs" />
         </div>
 
         <!-- Address -->
         <div>
-          <div class="field-label">Address</div>
+          <div class="field-label">{{ t('stream.address') }}</div>
           <q-input
             v-model="address"
             dense outlined
@@ -91,7 +93,7 @@ function onOk() {
 
         <!-- Port -->
         <div>
-          <div class="field-label">UDP Receive Port</div>
+          <div class="field-label">{{ t('stream.udpPort') }}</div>
           <q-input
             v-model="port"
             dense outlined
@@ -103,7 +105,7 @@ function onOk() {
 
         <!-- Buffer -->
         <div>
-          <div class="field-label">Buffer (ms)</div>
+          <div class="field-label">{{ t('stream.bufferMs') }}</div>
           <q-input
             v-model="bufferMs"
             dense outlined
@@ -115,28 +117,28 @@ function onOk() {
 
         <!-- Channels -->
         <div>
-          <div class="field-label">Channels</div>
+          <div class="field-label">{{ t('stream.channels') }}</div>
           <q-select v-model="channels" :options="channelOptions" emit-value map-options dense outlined class="q-mt-xs" />
         </div>
 
         <!-- Format -->
         <div>
-          <div class="field-label">Format</div>
+          <div class="field-label">{{ t('stream.format') }}</div>
           <q-select v-model="formatMode" :options="formatOptions" emit-value map-options dense outlined class="q-mt-xs" />
 
           <transition name="fade">
             <div v-if="formatMode === 'manual'" class="manual-box q-mt-sm q-gutter-y-sm">
               <div>
-                <div class="field-label-sub">Codec</div>
+                <div class="field-label-sub">{{ t('stream.codec') }}</div>
                 <q-select v-model="codec" :options="codecOptions" emit-value map-options dense outlined class="q-mt-xs" />
               </div>
               <div>
-                <div class="field-label-sub">Sample Rate</div>
+                <div class="field-label-sub">{{ t('stream.sampleRate') }}</div>
                 <q-select v-model="sampleRate" :options="sampleRateOptions" emit-value map-options dense outlined class="q-mt-xs" />
               </div>
               <transition name="fade">
                 <div v-if="showBitDepth">
-                  <div class="field-label-sub">Bit Depth</div>
+                  <div class="field-label-sub">{{ t('stream.bitDepth') }}</div>
                   <q-select v-model="bitDepth" :options="bitDepthOptions" emit-value map-options dense outlined class="q-mt-xs" />
                 </div>
               </transition>
@@ -148,8 +150,8 @@ function onOk() {
       <q-separator />
 
       <q-card-actions align="right" class="q-pa-sm">
-        <q-btn flat label="Cancel" color="grey-7" @click="onDialogCancel" />
-        <q-btn unelevated label="Start" color="positive" icon="play_arrow" @click="onOk" />
+        <q-btn flat :label="t('common.cancel')" color="grey-7" @click="onDialogCancel" />
+        <q-btn unelevated :label="t('common.start')" color="positive" icon="play_arrow" @click="onOk" />
       </q-card-actions>
     </q-card>
   </q-dialog>

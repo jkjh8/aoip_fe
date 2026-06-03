@@ -5,6 +5,7 @@ export default { inheritAttrs: false }
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
+import { useI18n } from 'vue-i18n'
 import { socket } from 'src/boot/socket'
 import { useAoipStore } from 'src/stores/aoip'
 import { useChannelPanel } from 'src/composables/useChannelPanel'
@@ -14,6 +15,7 @@ import Aes67SourceAddDialog from 'src/components/aes67/Aes67SourceAddDialog.vue'
 import Aes67SourceEditDialog from 'src/components/aes67/Aes67SourceEditDialog.vue'
 
 const $q = useQuasar()
+const { t } = useI18n()
 const aoipState = useAoipStore()
 
 const {
@@ -83,7 +85,7 @@ function hasConnected(outGroup) {
 
 // ── Delete source ─────────────────────────────────────────
 function removeSource(source) {
-  if (!confirm(`"${source.name}" 소스를 삭제하시겠습니까?`)) return
+  if (!confirm(t('aes67.confirmRemoveSource', { name: source.name }))) return
   socket.emit('aes67:source:remove', { id: source.id }, (res) => {
     if (res?.ok) refreshSources()
   })
@@ -111,7 +113,7 @@ function hasAvailableSourceSlot() {
 
 function openAddSource() {
   if (!hasAvailableSourceSlot()) {
-    $q.notify({ type: 'negative', message: '할당 가능한 채널 슬롯이 없습니다 (최대 16ch)' })
+    $q.notify({ type: 'negative', message: t('errors.noChannelSlots') })
     return
   }
   $q.dialog({ component: Aes67SourceAddDialog }).onOk(() => refreshSources())
@@ -126,13 +128,13 @@ function openEdit(source) {
   <div v-bind="$attrs">
   <q-card style="background-color: #fff; width: 100%">
     <q-card-section class="card-header" style="border-top: 3px solid #7b1fa2">
-      <span class="card-title">AES67</span>
-      <span class="card-dir">Output</span>
+      <span class="card-title">{{ t('aes67.title') }}</span>
+      <span class="card-dir">{{ t('mixer.output') }}</span>
       <q-btn
         flat dense round size="xs" icon="add" color="purple-7" class="q-ml-auto"
         :disable="!aoipState.aes67.ready" @click="openAddSource"
       >
-        <q-tooltip>Source 추가</q-tooltip>
+        <q-tooltip>{{ t('aes67.addSource') }}</q-tooltip>
       </q-btn>
     </q-card-section>
     <q-separator />
@@ -143,7 +145,7 @@ function openEdit(source) {
             <q-icon name="upload" size="xs" color="blue-7" />
             <span class="aes67-item-name">{{ source.name }}</span>
             <q-badge outline :color="source.enabled ? 'positive' : 'grey-5'" class="q-ml-xs">
-              {{ source.enabled ? 'ON' : 'OFF' }}
+              {{ source.enabled ? t('common.on') : t('common.off') }}
             </q-badge>
             <div style="margin-left:auto; display:flex; align-items:center; gap:2px">
               <q-btn flat dense round size="xs"
@@ -151,13 +153,13 @@ function openEdit(source) {
                 :color="source.enabled ? 'orange-7' : 'positive'"
                 :loading="busyMap[source.id]"
                 @click="toggleEnabled(source)">
-                <q-tooltip>{{ source.enabled ? 'Disable' : 'Enable' }}</q-tooltip>
+                <q-tooltip>{{ source.enabled ? t('common.disable') : t('common.enable') }}</q-tooltip>
               </q-btn>
               <q-btn flat dense round size="xs" icon="edit" color="grey-6" @click="openEdit(source)">
-                <q-tooltip>수정</q-tooltip>
+                <q-tooltip>{{ t('common.edit') }}</q-tooltip>
               </q-btn>
               <q-btn flat dense round size="xs" icon="delete_outline" color="negative" @click="removeSource(source)">
-                <q-tooltip>삭제</q-tooltip>
+                <q-tooltip>{{ t('common.delete') }}</q-tooltip>
               </q-btn>
             </div>
           </div>
@@ -189,7 +191,7 @@ function openEdit(source) {
             <div class="ch-main">
               <div class="ch-info">
                 <span class="ch-name">{{ ch.label }}</span>
-                <span class="ch-mode ch-mode--mono">Mono</span>
+                <span class="ch-mode ch-mode--mono">{{ t('common.mono') }}</span>
               </div>
               <div class="slider-wrap">
                 <div v-if="dragging[ch.id] !== undefined" class="slider-thumb-tip" :style="{ left: thumbLeft(dragging[ch.id]) }">
@@ -213,7 +215,7 @@ function openEdit(source) {
               :color="ch.muted ? 'negative' : 'blue-grey-5'"
               @click="doToggleMute(g(ch))"
             >
-              <q-tooltip class="bg-grey-4 text-grey-9">Mute</q-tooltip>
+              <q-tooltip class="bg-grey-4 text-grey-9">{{ t('common.mute') }}</q-tooltip>
             </q-btn>
             <LevelMeter :channels="[{ level: ch.level, muted: ch.muted }]" :title="ch.label" />
           </div>
@@ -221,7 +223,7 @@ function openEdit(source) {
 
         <div v-if="!sources.length" class="aes67-empty">
           <q-icon name="upload" size="32px" color="blue-grey-3" />
-          <span>{{ aoipState.aes67.ready ? '소스 없음' : 'AES67 데몬이 실행 중이 아닙니다' }}</span>
+          <span>{{ aoipState.aes67.ready ? t('aes67.noSources') : t('aes67.daemonOffline') }}</span>
         </div>
       </div>
     </q-card-section>

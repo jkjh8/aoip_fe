@@ -1,10 +1,12 @@
 <script setup>
 import { onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useSettingsStore } from 'src/stores/settings.js'
 import { useAoipStore } from 'src/stores/aoip.js'
 import { useQuasar } from 'quasar'
 import { storeToRefs } from 'pinia'
 
+const { t } = useI18n()
 const store = useSettingsStore()
 const aoipStore = useAoipStore()
 const $q = useQuasar()
@@ -27,32 +29,32 @@ async function toggle(val) {
     if (conflict) {
       $q.notify({
         type: 'negative',
-        message: `Port ${serial.value.tcpPort} is already used by RTP In stream "${conflict.name ?? conflict.client}".`,
-        position: 'top',
+        message: t('settings.portConflict', { port: serial.value.tcpPort, name: conflict.name ?? conflict.client }),
       })
       return
     }
   }
   serial.value.enabled = val
   const res = await store.saveSerial({ ...serial.value })
-  if (res?.ok) $q.notify({ type: 'positive', message: 'Serial settings saved.', position: 'top' })
+  if (res?.ok) $q.notify({ type: 'positive', message: t('settings.serialSaved') })
   else {
     serial.value.enabled = !val
-    $q.notify({ type: 'negative', message: res?.error ?? 'Failed to save', position: 'top' })
+    $q.notify({ type: 'negative', message: res?.error ?? t('errors.saveFailed') })
   }
 }
 </script>
 
 <template>
   <q-card flat bordered>
-    <q-card-section class="row no-wrap justify-between items-center q-px-lg q-py-sm">
-      <div class="row q-gutter-x-xs items-center">
-        <q-icon name="cable" size="20px" color="blue-7" />
-        <span class="st-panel-title">RS232 Serial Server</span>
+    <q-card-section class="row no-wrap justify-between items-center q-py-sm">
+      <div class="row q-gutter-x-sm items-center">
+        <q-icon name="cable" size="24px" color="blue-7" />
+        <span class="st-panel-title">{{ t('settings.serial') }}</span>
       </div>
-      <div class="row items-center q-gutter-x-sm">
-        <q-spinner v-if="serialLoading || serialSaving" size="16px" color="blue-7" />
+      <div class="row items-center">
+        <q-spinner v-if="serialLoading || serialSaving" size="24px" color="blue-7" />
         <q-toggle
+          class="q-py-none q-my-none"
           :model-value="serial.enabled"
           :disable="serialSaving"
           size="lg"
@@ -64,26 +66,23 @@ async function toggle(val) {
       </div>
     </q-card-section>
     <q-separator />
-    <q-card-section
-      class="row no-wrap justify-between items-center q-px-md q-gutter-x-md q-my-none"
-    >
-      <span class="row-label">TCP Port</span>
-      <q-input
-        v-model.number="serial.tcpPort"
-        :disable="serial.enabled"
-        type="number"
-        min="1"
-        max="65535"
-        dense
-        outlined
-        hide-bottom-space
-        class="input-width"
-      />
-    </q-card-section>
-    <q-separator />
-    <q-card-section class="q-px-md q-gutter-x-md q-my-none">
+    <q-card-section class="q-gutter-y-sm">
       <div class="row no-wrap justify-between items-center">
-        <span class="row-label">Baud Rate</span>
+        <span class="row-label">{{ t('settings.tcpPort') }}</span>
+        <q-input
+          v-model.number="serial.tcpPort"
+          :disable="serial.enabled"
+          type="number"
+          min="1"
+          max="65535"
+          dense
+          outlined
+          hide-bottom-space
+          class="input-width"
+        />
+      </div>
+      <div class="row no-wrap justify-between items-center">
+        <span class="row-label">{{ t('settings.baudRate') }}</span>
         <q-select
           v-model="serial.baudRate"
           :options="baudRateOptions"
@@ -94,8 +93,8 @@ async function toggle(val) {
           class="input-width"
         />
       </div>
-      <div class="row no-wrap justify-between items-center q-mt-sm">
-        <span class="row-label">Data Bits</span>
+      <div class="row no-wrap justify-between items-center">
+        <span class="row-label">{{ t('settings.dataBits') }}</span>
         <q-select
           v-model="serial.dataBits"
           :options="dataBitsOptions"
@@ -106,8 +105,8 @@ async function toggle(val) {
           class="input-width"
         />
       </div>
-      <div class="row no-wrap justify-between items-center q-mt-sm">
-        <span class="row-label">Stop Bits</span>
+      <div class="row no-wrap justify-between items-center">
+        <span class="row-label">{{ t('settings.stopBits') }}</span>
         <q-select
           v-model="serial.stopBits"
           :options="stopBitsOptions"
@@ -118,8 +117,8 @@ async function toggle(val) {
           class="input-width"
         />
       </div>
-      <div class="row no-wrap justify-between items-center q-mt-sm">
-        <span class="row-label">Parity</span>
+      <div class="row no-wrap justify-between items-center">
+        <span class="row-label">{{ t('settings.parity') }}</span>
         <q-select
           v-model="serial.parity"
           :options="parityOptions"

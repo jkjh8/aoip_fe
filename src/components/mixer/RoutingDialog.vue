@@ -5,7 +5,11 @@ import { useAoipStore } from 'src/stores/aoip'
 import { useChannelPanel } from 'src/composables/useChannelPanel'
 
 const aoipState = useAoipStore()
-const { channelGroups: inputGroups, groupLabel, groupKey, typeTag } = useChannelPanel('input')
+const { channelSections: inputSections, groupLabel, groupKey, typeTag } = useChannelPanel('input')
+
+function chColor(ch) {
+  return typeTag(ch.label).color
+}
 
 const props = defineProps({
   modelValue: {
@@ -65,151 +69,147 @@ function toggleForGroup(inCh, outGroup) {
         <q-card-section class="route-dialog-section-label">
           {{ groupLabel(routeTarget) }} L
         </q-card-section>
-        <q-card-section class="route-dialog-body">
-          <template v-for="inGroup in inputGroups" :key="'L-' + groupKey(inGroup)">
-            <template v-if="inGroup.stereo">
-              <button
-                class="route-ch-btn"
-                :class="{ active: isConnected(inGroup.left.port, routeTarget.left.port) }"
-                @click="toggleConnection(inGroup.left.port, routeTarget.left.port)"
-              >
-                <span
-                  class="route-ch-tag"
-                  :style="`background:${typeTag(inGroup.left.label).color}`"
-                  >{{ typeTag(inGroup.left.label).text }}</span
+        <template v-for="(section, sIdx) in inputSections" :key="'L-sec-' + section.title">
+          <q-separator v-if="sIdx > 0" class="route-section-sep" />
+          <q-card-section class="route-dialog-body">
+            <template v-for="inGroup in section.groups" :key="'L-' + groupKey(inGroup)">
+              <template v-if="inGroup.stereo">
+                <button
+                  class="route-ch-btn"
+                  :class="{ active: isConnected(inGroup.left.port, routeTarget.left.port) }"
+                  :style="{ '--ch-color': chColor(inGroup.left) }"
+                  @click="toggleConnection(inGroup.left.port, routeTarget.left.port)"
                 >
-                <span class="route-ch-name">{{ groupLabel(inGroup) }} L</span>
-              </button>
-              <button
-                class="route-ch-btn"
-                :class="{
-                  active: isConnected(inGroup.right.port, routeTarget.left.port),
-                }"
-                @click="toggleConnection(inGroup.right.port, routeTarget.left.port)"
-              >
-                <span
-                  class="route-ch-tag"
-                  :style="`background:${typeTag(inGroup.right.label).color}`"
-                  >{{ typeTag(inGroup.right.label).text }}</span
+                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.left) }">
+                    {{ typeTag(inGroup.left.label).text }}
+                  </span>
+                  <span class="route-ch-name">{{ groupLabel(inGroup) }} L</span>
+                </button>
+                <button
+                  class="route-ch-btn"
+                  :class="{ active: isConnected(inGroup.right.port, routeTarget.left.port) }"
+                  :style="{ '--ch-color': chColor(inGroup.right) }"
+                  @click="toggleConnection(inGroup.right.port, routeTarget.left.port)"
                 >
-                <span class="route-ch-name">{{ groupLabel(inGroup) }} R</span>
-              </button>
+                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.right) }">
+                    {{ typeTag(inGroup.right.label).text }}
+                  </span>
+                  <span class="route-ch-name">{{ groupLabel(inGroup) }} R</span>
+                </button>
+              </template>
+              <template v-else>
+                <button
+                  class="route-ch-btn"
+                  :class="{ active: isConnected(inGroup.ch.port, routeTarget.left.port) }"
+                  :style="{ '--ch-color': chColor(inGroup.ch) }"
+                  @click="toggleConnection(inGroup.ch.port, routeTarget.left.port)"
+                >
+                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.ch) }">
+                    {{ typeTag(inGroup.ch.label).text }}
+                  </span>
+                  <span class="route-ch-name">{{ groupLabel(inGroup) }}</span>
+                </button>
+              </template>
             </template>
-            <template v-else>
-              <button
-                class="route-ch-btn"
-                :class="{ active: isConnected(inGroup.ch.port, routeTarget.left.port) }"
-                @click="toggleConnection(inGroup.ch.port, routeTarget.left.port)"
-              >
-                <span
-                  class="route-ch-tag"
-                  :style="`background:${typeTag(inGroup.ch.label).color}`"
-                  >{{ typeTag(inGroup.ch.label).text }}</span
-                >
-                <span class="route-ch-name">{{ groupLabel(inGroup) }}</span>
-              </button>
-            </template>
-          </template>
-        </q-card-section>
+          </q-card-section>
+        </template>
         <q-separator />
         <q-card-section class="route-dialog-section-label">
           {{ groupLabel(routeTarget) }} R
         </q-card-section>
-        <q-card-section class="route-dialog-body">
-          <template v-for="inGroup in inputGroups" :key="'R-' + groupKey(inGroup)">
-            <template v-if="inGroup.stereo">
-              <button
-                class="route-ch-btn"
-                :class="{
-                  active: isConnected(inGroup.left.port, routeTarget.right.port),
-                }"
-                @click="toggleConnection(inGroup.left.port, routeTarget.right.port)"
-              >
-                <span
-                  class="route-ch-tag"
-                  :style="`background:${typeTag(inGroup.left.label).color}`"
-                  >{{ typeTag(inGroup.left.label).text }}</span
+        <template v-for="(section, sIdx) in inputSections" :key="'R-sec-' + section.title">
+          <q-separator v-if="sIdx > 0" class="route-section-sep" />
+          <q-card-section class="route-dialog-body">
+            <template v-for="inGroup in section.groups" :key="'R-' + groupKey(inGroup)">
+              <template v-if="inGroup.stereo">
+                <button
+                  class="route-ch-btn"
+                  :class="{ active: isConnected(inGroup.left.port, routeTarget.right.port) }"
+                  :style="{ '--ch-color': chColor(inGroup.left) }"
+                  @click="toggleConnection(inGroup.left.port, routeTarget.right.port)"
                 >
-                <span class="route-ch-name">{{ groupLabel(inGroup) }} L</span>
-              </button>
-              <button
-                class="route-ch-btn"
-                :class="{
-                  active: isConnected(inGroup.right.port, routeTarget.right.port),
-                }"
-                @click="toggleConnection(inGroup.right.port, routeTarget.right.port)"
-              >
-                <span
-                  class="route-ch-tag"
-                  :style="`background:${typeTag(inGroup.right.label).color}`"
-                  >{{ typeTag(inGroup.right.label).text }}</span
+                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.left) }">
+                    {{ typeTag(inGroup.left.label).text }}
+                  </span>
+                  <span class="route-ch-name">{{ groupLabel(inGroup) }} L</span>
+                </button>
+                <button
+                  class="route-ch-btn"
+                  :class="{ active: isConnected(inGroup.right.port, routeTarget.right.port) }"
+                  :style="{ '--ch-color': chColor(inGroup.right) }"
+                  @click="toggleConnection(inGroup.right.port, routeTarget.right.port)"
                 >
-                <span class="route-ch-name">{{ groupLabel(inGroup) }} R</span>
-              </button>
+                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.right) }">
+                    {{ typeTag(inGroup.right.label).text }}
+                  </span>
+                  <span class="route-ch-name">{{ groupLabel(inGroup) }} R</span>
+                </button>
+              </template>
+              <template v-else>
+                <button
+                  class="route-ch-btn"
+                  :class="{ active: isConnected(inGroup.ch.port, routeTarget.right.port) }"
+                  :style="{ '--ch-color': chColor(inGroup.ch) }"
+                  @click="toggleConnection(inGroup.ch.port, routeTarget.right.port)"
+                >
+                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.ch) }">
+                    {{ typeTag(inGroup.ch.label).text }}
+                  </span>
+                  <span class="route-ch-name">{{ groupLabel(inGroup) }}</span>
+                </button>
+              </template>
             </template>
-            <template v-else>
-              <button
-                class="route-ch-btn"
-                :class="{ active: isConnected(inGroup.ch.port, routeTarget.right.port) }"
-                @click="toggleConnection(inGroup.ch.port, routeTarget.right.port)"
-              >
-                <span
-                  class="route-ch-tag"
-                  :style="`background:${typeTag(inGroup.ch.label).color}`"
-                  >{{ typeTag(inGroup.ch.label).text }}</span
-                >
-                <span class="route-ch-name">{{ groupLabel(inGroup) }}</span>
-              </button>
-            </template>
-          </template>
-        </q-card-section>
+          </q-card-section>
+        </template>
       </template>
 
       <!-- 모노 출력: 단일 섹션 -->
-      <q-card-section v-else class="route-dialog-body">
-        <template v-for="inGroup in inputGroups" :key="groupKey(inGroup)">
-          <template v-if="inGroup.stereo">
-            <button
-              class="route-ch-btn"
-              :class="{ active: routeTarget && isInConnected(inGroup.left, routeTarget) }"
-              @click="routeTarget && toggleForGroup(inGroup.left, routeTarget)"
-            >
-              <span
-                class="route-ch-tag"
-                :style="`background:${typeTag(inGroup.left.label).color}`"
-                >{{ typeTag(inGroup.left.label).text }}</span
-              >
-              <span class="route-ch-name">{{ groupLabel(inGroup) }} L</span>
-            </button>
-            <button
-              class="route-ch-btn"
-              :class="{ active: routeTarget && isInConnected(inGroup.right, routeTarget) }"
-              @click="routeTarget && toggleForGroup(inGroup.right, routeTarget)"
-            >
-              <span
-                class="route-ch-tag"
-                :style="`background:${typeTag(inGroup.right.label).color}`"
-                >{{ typeTag(inGroup.right.label).text }}</span
-              >
-              <span class="route-ch-name">{{ groupLabel(inGroup) }} R</span>
-            </button>
-          </template>
-          <template v-else>
-            <button
-              class="route-ch-btn"
-              :class="{ active: routeTarget && isInConnected(inGroup.ch, routeTarget) }"
-              @click="routeTarget && toggleForGroup(inGroup.ch, routeTarget)"
-            >
-              <span
-                class="route-ch-tag"
-                :style="`background:${typeTag(inGroup.ch.label).color}`"
-                >{{ typeTag(inGroup.ch.label).text }}</span
-              >
-              <span class="route-ch-name">{{ groupLabel(inGroup) }}</span>
-            </button>
-          </template>
+      <template v-else>
+        <template v-for="(section, sIdx) in inputSections" :key="'M-sec-' + section.title">
+          <q-separator v-if="sIdx > 0" class="route-section-sep" />
+          <q-card-section class="route-dialog-body">
+            <template v-for="inGroup in section.groups" :key="groupKey(inGroup)">
+              <template v-if="inGroup.stereo">
+                <button
+                  class="route-ch-btn"
+                  :class="{ active: routeTarget && isInConnected(inGroup.left, routeTarget) }"
+                  :style="{ '--ch-color': chColor(inGroup.left) }"
+                  @click="routeTarget && toggleForGroup(inGroup.left, routeTarget)"
+                >
+                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.left) }">
+                    {{ typeTag(inGroup.left.label).text }}
+                  </span>
+                  <span class="route-ch-name">{{ groupLabel(inGroup) }} L</span>
+                </button>
+                <button
+                  class="route-ch-btn"
+                  :class="{ active: routeTarget && isInConnected(inGroup.right, routeTarget) }"
+                  :style="{ '--ch-color': chColor(inGroup.right) }"
+                  @click="routeTarget && toggleForGroup(inGroup.right, routeTarget)"
+                >
+                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.right) }">
+                    {{ typeTag(inGroup.right.label).text }}
+                  </span>
+                  <span class="route-ch-name">{{ groupLabel(inGroup) }} R</span>
+                </button>
+              </template>
+              <template v-else>
+                <button
+                  class="route-ch-btn"
+                  :class="{ active: routeTarget && isInConnected(inGroup.ch, routeTarget) }"
+                  :style="{ '--ch-color': chColor(inGroup.ch) }"
+                  @click="routeTarget && toggleForGroup(inGroup.ch, routeTarget)"
+                >
+                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.ch) }">
+                    {{ typeTag(inGroup.ch.label).text }}
+                  </span>
+                  <span class="route-ch-name">{{ groupLabel(inGroup) }}</span>
+                </button>
+              </template>
+            </template>
+          </q-card-section>
         </template>
-      </q-card-section>
+      </template>
     </q-card>
   </q-dialog>
 </template>
@@ -265,8 +265,13 @@ function toggleForGroup(inCh, outGroup) {
   border-color: #90a4ae;
 }
 .route-ch-btn.active {
-  background: #1565c0;
-  border-color: #1565c0;
+  background: var(--ch-color, #1565c0);
+  border-color: var(--ch-color, #1565c0);
+}
+:deep(.route-section-sep) {
+  margin: 4px 0;
+  background: #cfd8dc;
+  height: 1px;
 }
 .route-ch-btn.active .route-ch-name {
   color: #fff;

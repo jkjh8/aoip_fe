@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useDialogPluginComponent } from 'quasar'
 
 const props = defineProps({
@@ -9,6 +10,7 @@ const props = defineProps({
 
 defineEmits([...useDialogPluginComponent.emits])
 
+const { t } = useI18n()
 const { dialogRef, onDialogHide, onDialogOK, onDialogCancel } = useDialogPluginComponent()
 
 const bitrateOptions = {
@@ -16,7 +18,7 @@ const bitrateOptions = {
   opus: [64,  96,  128, 192, 256, 320],
 }
 const sampleRateOptions = [{ label: '44.1k', value: 44100 }, { label: '48k', value: 48000 }]
-const channelOptions    = [{ label: 'Mono', value: 1 }, { label: 'Stereo', value: 2 }]
+const channelOptions    = computed(() => [{ label: t('common.mono'), value: 1 }, { label: t('common.stereo'), value: 2 }])
 const protocolOptions   = [{ label: 'RTP', value: 'rtp' }, { label: 'UDP Raw', value: 'udp' }]
 const codecOptions      = [{ label: 'MP3', value: 'mp3' }, { label: 'Opus', value: 'opus' }, { label: 'RAW PCM', value: 'raw' }]
 
@@ -63,7 +65,7 @@ function onOk() {
     <q-card style="min-width: 340px; max-width: 420px">
       <q-card-section class="row items-center q-pb-sm">
         <q-icon name="play_circle" color="positive" size="sm" class="q-mr-sm" />
-        <span class="text-subtitle1 text-weight-bold">Start Stream</span>
+        <span class="text-subtitle1 text-weight-bold">{{ t('stream.startStream') }}</span>
         <span v-if="name" class="q-ml-sm text-grey-6 text-caption">{{ name }}</span>
       </q-card-section>
 
@@ -72,19 +74,19 @@ function onOk() {
       <q-card-section class="q-gutter-y-md q-pt-md">
         <!-- Channels -->
         <div>
-          <div class="field-label">Channels</div>
+          <div class="field-label">{{ t('stream.channels') }}</div>
           <q-select v-model="channels" :options="channelOptions" emit-value map-options dense outlined class="q-mt-xs" />
         </div>
 
         <!-- Protocol -->
         <div>
-          <div class="field-label">Protocol</div>
+          <div class="field-label">{{ t('stream.protocol') }}</div>
           <q-select v-model="protocol" :options="protocolOptions" emit-value map-options dense outlined class="q-mt-xs" />
         </div>
 
         <!-- Codec -->
         <div>
-          <div class="field-label">Codec</div>
+          <div class="field-label">{{ t('stream.codec') }}</div>
           <q-select
             :model-value="codec"
             :options="codecOptions"
@@ -96,20 +98,20 @@ function onOk() {
         <!-- Bitrate -->
         <transition name="fade">
           <div v-if="showBitrate">
-            <div class="field-label">Bitrate</div>
+            <div class="field-label">{{ t('stream.bitrate') }}</div>
             <q-select v-model="bitrate" :options="bitrateSelectOptions" emit-value map-options dense outlined class="q-mt-xs" />
           </div>
         </transition>
 
         <!-- Sample Rate -->
         <div>
-          <div class="field-label">Sample Rate</div>
+          <div class="field-label">{{ t('stream.sampleRate') }}</div>
           <q-select v-model="sampleRate" :options="sampleRateOptions" emit-value map-options dense outlined class="q-mt-xs" />
         </div>
 
         <!-- Destination -->
         <div>
-          <div class="field-label">Destination</div>
+          <div class="field-label">{{ t('stream.destination') }}</div>
           <div class="dest-row q-mt-xs">
             <input v-model="host" class="add-input add-input--host" placeholder="Host / IP" />
             <span class="add-sep">:</span>
@@ -121,8 +123,8 @@ function onOk() {
       <q-separator />
 
       <q-card-actions align="right" class="q-pa-sm">
-        <q-btn flat label="Cancel" color="grey-7" @click="onDialogCancel" />
-        <q-btn unelevated label="Start" color="positive" icon="play_arrow" @click="onOk" />
+        <q-btn flat :label="t('common.cancel')" color="grey-7" @click="onDialogCancel" />
+        <q-btn unelevated :label="t('common.start')" color="positive" icon="play_arrow" @click="onOk" />
       </q-card-actions>
     </q-card>
   </q-dialog>

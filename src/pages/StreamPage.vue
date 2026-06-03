@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useQuasar } from 'quasar'
+import { useI18n } from 'vue-i18n'
 import { socket } from 'src/boot/socket'
 import { useAoipStore } from 'src/stores/aoip'
 import StreamPanel from 'src/components/stream/StreamPanel.vue'
@@ -9,6 +10,7 @@ import RtpOutStartDialog from 'src/components/stream/RtpOutStartDialog.vue'
 
 const aoipState = useAoipStore()
 const $q = useQuasar()
+const { t } = useI18n()
 
 const apiBase = process.env.DEV
   ? 'http://192.168.10.103:3000'
@@ -63,7 +65,7 @@ function activateStream(s) {
           body: JSON.stringify(body),
         })
         const data = await res.json()
-        if (!data.ok) $q.notify({ type: 'negative', message: data.error ?? '시작 실패' })
+        if (!data.ok) $q.notify({ type: 'negative', message: data.error ?? t('errors.startFailed') })
       } catch (e) {
         console.error('[stream] activate rtp_in failed', e)
       }
@@ -83,7 +85,7 @@ function activateStream(s) {
         })
         const data = await res.json()
         if (!data.ok) {
-          $q.notify({ type: 'negative', message: data.error ?? '시작 실패' })
+          $q.notify({ type: 'negative', message: data.error ?? t('errors.startFailed') })
           return
         }
         if (host && port) {
@@ -106,14 +108,14 @@ function removeStream(client) {
     .find((s) => s.client === client)
   const name = s?.name ?? client
   $q.dialog({
-    title: '스트림 삭제',
-    message: `"${name}" 스트림을 삭제하시겠습니까?`,
-    cancel: { flat: true, label: '취소' },
-    ok: { unelevated: true, label: '삭제', color: 'negative' },
+    title: t('stream.dialogs.deleteTitle'),
+    message: t('stream.dialogs.deleteMessage', { name }),
+    cancel: { flat: true, label: t('common.cancel') },
+    ok: { unelevated: true, label: t('common.delete'), color: 'negative' },
     persistent: true,
   }).onOk(() => {
     socket.emit('rtp:stream:delete', { client }, (res) => {
-      if (!res?.ok) $q.notify({ type: 'negative', message: res?.error ?? '삭제 실패' })
+      if (!res?.ok) $q.notify({ type: 'negative', message: res?.error ?? t('errors.deleteFailed') })
     })
   })
 }
@@ -122,7 +124,7 @@ function removeStream(client) {
 <template>
   <q-page>
     <div v-if="!aoipState.connected" class="row justify-center q-pa-md q-mt-xl">
-      <q-chip color="negative" text-color="white" icon="wifi_off">lost connection</q-chip>
+      <q-chip color="negative" text-color="white" icon="wifi_off">{{ t('errors.lostConnection') }}</q-chip>
     </div>
 
     <div v-else class="row q-pa-md q-gutter-md items-start">
@@ -130,17 +132,17 @@ function removeStream(client) {
       <div class="col stream-col">
         <div class="col-label">
           <q-icon name="download" size="16px" color="green-7" />
-          Input
+          {{ t('stream.input') }}
           <q-btn
             flat round dense size="xs"
             icon="add"
             color="green-7"
             style="margin-left: auto; margin-right: -4px"
           >
-            <q-tooltip>비활성 스트림 활성화</q-tooltip>
+            <q-tooltip>{{ t('stream.activate') }}</q-tooltip>
             <q-menu>
               <q-list style="min-width: 210px">
-                <q-item-label header class="text-caption q-py-xs">비활성 Input 스트림</q-item-label>
+                <q-item-label header class="text-caption q-py-xs">{{ t('stream.inactiveInputs') }}</q-item-label>
                 <template v-if="inactiveInputs.length">
                   <q-item
                     v-for="s in inactiveInputs"
@@ -161,7 +163,7 @@ function removeStream(client) {
                   </q-item>
                 </template>
                 <q-item v-else disable dense>
-                  <q-item-section class="text-grey-5 text-caption">모든 스트림이 활성화됨</q-item-section>
+                  <q-item-section class="text-grey-5 text-caption">{{ t('stream.allActive') }}</q-item-section>
                 </q-item>
               </q-list>
             </q-menu>
@@ -179,7 +181,7 @@ function removeStream(client) {
           />
           <div v-if="!rtpInPanels.length" class="empty-col">
             <q-icon name="stream" size="32px" color="blue-grey-3" />
-            <span>No active input streams</span>
+            <span>{{ t('stream.noActiveInputs') }}</span>
           </div>
         </div>
       </div>
@@ -188,17 +190,17 @@ function removeStream(client) {
       <div class="col stream-col">
         <div class="col-label">
           <q-icon name="upload" size="16px" color="blue-7" />
-          Output
+          {{ t('stream.output') }}
           <q-btn
             flat round dense size="xs"
             icon="add"
             color="blue-7"
             style="margin-left: auto; margin-right: -4px"
           >
-            <q-tooltip>비활성 스트림 활성화</q-tooltip>
+            <q-tooltip>{{ t('stream.activate') }}</q-tooltip>
             <q-menu>
               <q-list style="min-width: 210px">
-                <q-item-label header class="text-caption q-py-xs">비활성 Output 스트림</q-item-label>
+                <q-item-label header class="text-caption q-py-xs">{{ t('stream.inactiveOutputs') }}</q-item-label>
                 <template v-if="inactiveOutputs.length">
                   <q-item
                     v-for="s in inactiveOutputs"
@@ -219,7 +221,7 @@ function removeStream(client) {
                   </q-item>
                 </template>
                 <q-item v-else disable dense>
-                  <q-item-section class="text-grey-5 text-caption">모든 스트림이 활성화됨</q-item-section>
+                  <q-item-section class="text-grey-5 text-caption">{{ t('stream.allActive') }}</q-item-section>
                 </q-item>
               </q-list>
             </q-menu>
@@ -237,7 +239,7 @@ function removeStream(client) {
           />
           <div v-if="!rtpOutPanels.length" class="empty-col">
             <q-icon name="stream" size="32px" color="blue-grey-3" />
-            <span>No active output streams</span>
+            <span>{{ t('stream.noActiveOutputs') }}</span>
           </div>
         </div>
       </div>

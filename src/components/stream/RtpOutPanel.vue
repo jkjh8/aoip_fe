@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 defineEmits(['refresh', 'edit'])
 
@@ -10,6 +11,7 @@ const props = defineProps({
 })
 
 // ── Live stats ───────────────────────────────────────────
+const { t } = useI18n()
 const liveKbps = computed(() => props.s?.stats?.bitrateKbps ?? 0)
 const liveBytesSent = computed(() => props.s?.stats?.bytesSent ?? 0)
 
@@ -34,26 +36,26 @@ const formatLabel = computed(() => {
 
 <template>
   <!-- Live stats + Format compact -->
-  <div class="st-section-label">Send Stream</div>
+  <div class="st-section-label">{{ t('stream.sendStream') }}</div>
   <div class="st-strip cs-wrap">
     <span class="cs-item cs-w-bitrate">
-      <span class="cs-key">Bitrate</span>
+      <span class="cs-key">{{ t('stream.bitrate') }}</span>
       <span class="cs-val" :class="liveKbps > 0 ? 'cs-active' : 'cs-muted'">
         {{ liveKbps > 0 ? liveKbps + ' kbps' : '—' }}
       </span>
     </span>
     <span class="cs-item cs-w-sent">
-      <span class="cs-key">Sent</span>
+      <span class="cs-key">{{ t('stream.sent') }}</span>
       <span class="cs-val" :class="liveBytesSent > 0 ? 'cs-active' : 'cs-muted'">
         {{ liveBytesSent > 0 ? fmtBytes(liveBytesSent) : '—' }}
       </span>
     </span>
     <span class="cs-item cs-w-proto">
-      <span class="cs-key">Protocol</span>
+      <span class="cs-key">{{ t('stream.protocol') }}</span>
       <span class="cs-val">{{ curProtocol.toUpperCase() }}</span>
     </span>
     <span class="cs-item cs-w-codec">
-      <span class="cs-key">Codec</span>
+      <span class="cs-key">{{ t('stream.codec') }}</span>
       <span class="cs-val">{{ formatLabel }}</span>
     </span>
   </div>

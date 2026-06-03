@@ -1,9 +1,11 @@
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAoipStore } from 'src/stores/aoip'
 import { useSettingsStore } from 'src/stores/settings'
 import { useQuasar } from 'quasar'
 
+const { t } = useI18n()
 const aoipState = useAoipStore()
 const store = useSettingsStore()
 const $q = useQuasar()
@@ -24,49 +26,56 @@ function fmtUptime(sec) {
 
 function askReboot() {
   $q.dialog({
-    title: 'Confirm Reboot',
-    message: 'The device will reboot. Are you sure?',
-    cancel: { flat: true, label: 'Cancel', color: 'grey-7' },
-    ok: { unelevated: true, label: 'Reboot', color: 'red-7' },
+    title: t('settings.confirmReboot'),
+    message: t('settings.rebootMessage'),
+    cancel: { flat: true, label: t('common.cancel'), color: 'grey-7' },
+    ok: { unelevated: true, label: t('settings.reboot'), color: 'red-7' },
     persistent: true,
   }).onOk(() => {
     store.reboot()
-    $q.notify({ type: 'warning', message: 'Rebooting...', position: 'top' })
+    $q.notify({ type: 'warning', message: t('settings.rebooting') })
   })
 }
 </script>
 
 <template>
   <q-card flat bordered>
-    <q-card-section class="row no-wrap justify-between items-center q-px-lg q-py-sm">
+    <q-card-section class="row no-wrap justify-between items-center">
       <div class="row q-gutter-x-xs row justify-start items-center">
         <q-icon name="settings_power" size="20px" color="red-7" />
-        <span class="st-panel-title">System</span>
+        <span class="st-panel-title">{{ t('settings.system') }}</span>
       </div>
     </q-card-section>
     <q-separator />
 
     <q-card-section>
-      <div class="row no-wrap justify-between items-center q-px-md q-my-sm">
-        <span class="row-label">Engine</span>
+      <div class="row no-wrap justify-between items-center">
+        <span class="row-label">{{ t('settings.engine') }}</span>
         <q-badge
           v-if="engineReady !== null"
           outline
           :color="engineReady ? 'positive' : 'warning'"
-          >{{ engineReady ? 'Running' : 'Stopped' }}</q-badge
+          >{{ engineReady ? t('common.running') : t('common.stopped') }}</q-badge
         >
       </div>
-      <div class="row no-wrap justify-between items-center q-px-md q-my-sm">
-        <span class="row-label">Engine Uptime</span>
+      <div class="row no-wrap justify-between items-center q-mt-md">
+        <span class="row-label">{{ t('settings.engineUptime') }}</span>
         <span class="uptime-val">{{ fmtUptime(engineSec) }}</span>
       </div>
     </q-card-section>
 
     <q-separator />
     <q-card-section>
-      <div class="row no-wrap justify-between items-center q-px-md q-my-sm">
-        <span class="row-label">Reboot</span>
-        <q-btn unelevated color="red-7" size="md" :disable="store.rebooting" @click="askReboot" label="Reboot" />
+      <div class="row no-wrap justify-between items-center">
+        <span class="row-label">{{ t('settings.reboot') }}</span>
+        <q-btn
+          unelevated
+          color="red-7"
+          size="md"
+          :disable="store.rebooting"
+          @click="askReboot"
+          :label="t('settings.reboot')"
+        />
       </div>
     </q-card-section>
   </q-card>

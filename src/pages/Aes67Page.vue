@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
+import { useI18n } from 'vue-i18n'
 import { socket } from 'src/boot/socket'
 import { useAoipStore } from 'src/stores/aoip'
 import Aes67SourcePanel from 'src/components/aes67/Aes67SourcePanel.vue'
@@ -9,6 +10,7 @@ import Aes67SinkAddDialog from 'src/components/aes67/Aes67SinkAddDialog.vue'
 import Aes67SourceAddDialog from 'src/components/aes67/Aes67SourceAddDialog.vue'
 
 const $q = useQuasar()
+const { t } = useI18n()
 const aoipState = useAoipStore()
 
 // ── Data 로드 ─────────────────────────────────────────────
@@ -50,7 +52,7 @@ function hasAvailableSlot(items) {
 
 function openAddSink() {
   if (!hasAvailableSlot(sinks.value)) {
-    $q.notify({ type: 'negative', message: '할당 가능한 채널 슬롯이 없습니다 (최대 16ch)' })
+    $q.notify({ type: 'negative', message: t('errors.noChannelSlots') })
     return
   }
   $q.dialog({ component: Aes67SinkAddDialog }).onOk(() => fetchSinks())
@@ -58,7 +60,7 @@ function openAddSink() {
 
 function openAddSource() {
   if (!hasAvailableSlot(sources.value)) {
-    $q.notify({ type: 'negative', message: '할당 가능한 채널 슬롯이 없습니다 (최대 16ch)' })
+    $q.notify({ type: 'negative', message: t('errors.noChannelSlots') })
     return
   }
   $q.dialog({ component: Aes67SourceAddDialog }).onOk(() => fetchSources())
@@ -73,12 +75,12 @@ function openAddSource() {
       <q-card-section class="q-py-sm" style="min-height: 52px; display: flex; align-items: center;">
         <div class="row no-wrap justify-between items-center" style="width:100%">
           <div class="row items-center q-gutter-x-sm">
-            <span class="header-title">AES67</span>
+            <span class="header-title">{{ t('aes67.title') }}</span>
             <q-badge
               :color="aes67.ready ? 'positive' : aes67.running ? 'warning' : 'grey-5'"
               outline
             >
-              {{ aes67.ready ? 'Ready' : aes67.running ? 'Starting…' : 'Stopped' }}
+              {{ aes67.ready ? t('common.ready') : aes67.running ? t('common.starting') : t('common.stopped') }}
             </q-badge>
           </div>
         </div>
@@ -92,7 +94,7 @@ function openAddSource() {
             size="14px"
           />
           <span class="ptp-label" :class="ptpLocked ? 'ptp-locked' : 'ptp-unlocked'">
-            PTP {{ ptpLabel }}
+            {{ t('aes67.ptp') }} {{ ptpLabel }}
           </span>
         </div>
       </q-card-section>
@@ -106,21 +108,21 @@ function openAddSource() {
       <div class="col aes67-col">
         <div class="col-label">
           <q-icon name="download" size="16px" color="green-7" />
-          Sinks · Input
+          {{ t('aes67.sinksInput') }}
           <q-btn flat dense round size="xs" icon="add" color="green-7"
             :disable="!aes67.ready" @click="openAddSink" style="margin-left: auto; margin-right: -4px">
-            <q-tooltip>Add Sink</q-tooltip>
+            <q-tooltip>{{ t('aes67.addSink') }}</q-tooltip>
           </q-btn>
         </div>
         <div class="column q-gutter-sm">
           <Aes67SinkPanel v-for="sk in sinks" :key="sk.id" :sink="sk" @refresh="fetchSinks" />
           <div v-if="aes67.ready && !sinks.length" class="empty-hint">
             <q-icon name="download" size="32px" color="blue-grey-3" />
-            <span>싱크 없음</span>
+            <span>{{ t('aes67.noSinks') }}</span>
           </div>
           <div v-if="!aes67.ready" class="empty-hint">
             <q-icon name="power_off" size="32px" color="blue-grey-3" />
-            <span>AES67 데몬이 실행 중이 아닙니다</span>
+            <span>{{ t('aes67.daemonOffline') }}</span>
           </div>
         </div>
       </div>
@@ -129,21 +131,21 @@ function openAddSource() {
       <div class="col aes67-col">
         <div class="col-label">
           <q-icon name="upload" size="16px" color="blue-7" />
-          Sources · Output
+          {{ t('aes67.sourcesOutput') }}
           <q-btn flat dense round size="xs" icon="add" color="blue-7"
             :disable="!aes67.ready" @click="openAddSource" style="margin-left: auto; margin-right: -4px">
-            <q-tooltip>Add Source</q-tooltip>
+            <q-tooltip>{{ t('aes67.addSource') }}</q-tooltip>
           </q-btn>
         </div>
         <div class="column q-gutter-sm">
           <Aes67SourcePanel v-for="src in sources" :key="src.id" :source="src" @refresh="fetchSources" />
           <div v-if="aes67.ready && !sources.length" class="empty-hint">
             <q-icon name="upload" size="32px" color="blue-grey-3" />
-            <span>소스 없음</span>
+            <span>{{ t('aes67.noSources') }}</span>
           </div>
           <div v-if="!aes67.ready" class="empty-hint">
             <q-icon name="power_off" size="32px" color="blue-grey-3" />
-            <span>AES67 데몬이 실행 중이 아닙니다</span>
+            <span>{{ t('aes67.daemonOffline') }}</span>
           </div>
         </div>
       </div>

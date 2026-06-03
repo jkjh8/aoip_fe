@@ -1,23 +1,25 @@
 <script setup>
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAoipStore } from 'src/stores/aoip'
 import { useSettingsStore } from 'src/stores/settings'
 
+const { t } = useI18n()
 const aoip     = useAoipStore()
 const settings = useSettingsStore()
 
 const sections = computed(() => [
-  { title: 'Engine',        data: aoip.engine },
-  { title: 'AES67',         data: aoip.aes67 },
-  { title: 'AES67 PTP',     data: aoip.aes67PtpStatus },
-  { title: 'AES67 Sources', data: aoip.aes67Sources },
-  { title: 'AES67 Sinks',   data: aoip.aes67Sinks },
-  { title: 'Streams',       data: aoip.streams },
-  { title: 'Bridges',       data: aoip.bridges },
-  { title: 'Connections',   data: aoip.connections },
-  { title: 'Channels',      data: aoip.channels },
-  { title: 'RX Stats',      data: aoip.rxStats },
-  { title: 'Settings',      data: settings.$state },
+  { key: 'engine',      title: t('raw.engine'),      data: aoip.engine },
+  { key: 'aes67',       title: t('raw.aes67'),       data: aoip.aes67 },
+  { key: 'ptp',         title: t('raw.ptp'),         data: aoip.aes67PtpStatus },
+  { key: 'sources',     title: t('raw.sources'),     data: aoip.aes67Sources },
+  { key: 'sinks',       title: t('raw.sinks'),       data: aoip.aes67Sinks },
+  { key: 'streams',     title: t('raw.streams'),     data: aoip.streams },
+  { key: 'bridges',     title: t('raw.bridges'),     data: aoip.bridges },
+  { key: 'connections', title: t('raw.connections'), data: aoip.connections },
+  { key: 'channels',    title: t('raw.channels'),    data: aoip.channels },
+  { key: 'rxStats',     title: t('raw.rxStats'),     data: aoip.rxStats },
+  { key: 'settings',    title: t('raw.settings'),    data: settings.$state },
 ])
 
 const STORAGE_KEY = 'raw-page-open'
@@ -31,26 +33,26 @@ function loadOpen() {
 
 const open = ref(loadOpen())
 
-function toggle(title) {
-  open.value.has(title) ? open.value.delete(title) : open.value.add(title)
+function toggle(key) {
+  open.value.has(key) ? open.value.delete(key) : open.value.add(key)
   localStorage.setItem(STORAGE_KEY, JSON.stringify([...open.value]))
 }
 </script>
 
 <template>
   <q-page class="q-pa-md raw-page">
-    <div class="raw-page-title">Pinia Raw State</div>
+    <div class="raw-page-title">{{ t('raw.title') }}</div>
     <div class="raw-list">
-      <div v-for="sec in sections" :key="sec.title" class="raw-card">
-        <button class="raw-card-header" @click="toggle(sec.title)">
+      <div v-for="sec in sections" :key="sec.key" class="raw-card">
+        <button class="raw-card-header" @click="toggle(sec.key)">
           <span class="raw-card-title">{{ sec.title }}</span>
           <q-icon
-            :name="open.has(sec.title) ? 'expand_less' : 'expand_more'"
+            :name="open.has(sec.key) ? 'expand_less' : 'expand_more'"
             size="16px"
             color="white"
           />
         </button>
-        <pre v-if="open.has(sec.title)" class="raw-json">{{ JSON.stringify(sec.data, null, 2) }}</pre>
+        <pre v-if="open.has(sec.key)" class="raw-json">{{ JSON.stringify(sec.data, null, 2) }}</pre>
       </div>
     </div>
   </q-page>

@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { socket } from 'src/boot/socket'
 import 'src/css/dsp-dialog.css'
 import EqPanel from './dsp/EqPanel.vue'
@@ -12,12 +13,18 @@ const props = defineProps({
   modelValue: Boolean,
   channel: Object,
   channelRight: Object,
+  // When true, the backend mirrors DSP changes between channel and channelRight,
+  // so the dialog should only emit to one channel (the meter still shows both).
+  mirrored: Boolean,
 })
+const { t } = useI18n()
 const emit = defineEmits(['update:modelValue'])
 
 // ── Stereo link ──────────────────────────────────────────────
 const linked = ref(true)
-const chR = computed(() => (linked.value ? props.channelRight : null))
+const chR = computed(() =>
+  !props.mirrored && linked.value ? props.channelRight : null,
+)
 
 // ── Component refs ───────────────────────────────────────────
 const eqRef = ref(null)
@@ -85,12 +92,13 @@ watch(
       <!-- Header -->
       <div class="dsp-hd">
         <q-icon name="tune" size="18px" style="color: #5a6a8a" />
-        <span class="dsp-hd-title">OUTPUT DSP</span>
+        <span class="dsp-hd-title">{{ t('mixer.outputDsp') }}</span>
         <span class="dsp-hd-ch">{{ channel?.label }}</span>
         <template v-if="channelRight">
           <span class="dsp-hd-sep">·</span>
           <span class="dsp-hd-ch dsp-hd-ch--r">{{ channelRight?.label }}</span>
           <q-btn
+            v-if="!mirrored"
             :icon="linked ? 'link' : 'link_off'"
             :color="linked ? 'primary' : 'blue-grey-4'"
             flat

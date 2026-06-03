@@ -1,9 +1,11 @@
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { socket } from 'src/boot/socket'
 import { useAoipStore } from 'src/stores/aoip'
 import 'src/css/dsp-dynamics.css'
 
+const { t } = useI18n()
 const aoipStore = useAoipStore()
 
 const props = defineProps({
@@ -27,8 +29,8 @@ const enabled = ref(false)
 const lim = reactive({ ...DEFAULTS })
 
 const PARAMS = [
-  { key: 'threshold', label: 'Threshold', min: -60, max: 0, step: 0.5, unit: 'dBFS' },
-  { key: 'releaseMs', label: 'Release', min: 1, max: 5000, step: 10, unit: 'ms' },
+  { key: 'threshold', i18nKey: 'dsp.threshold', min: -60, max: 0, step: 0.5, unit: 'dBFS' },
+  { key: 'releaseMs', i18nKey: 'dsp.release', min: 1, max: 5000, step: 10, unit: 'ms' },
 ]
 
 function xOf(db) {
@@ -153,7 +155,7 @@ defineExpose({ enabled })
         <div class="gr-bar-track"><div class="gr-bar-fill" :style="`width:${grPct}%`" /></div>
         <span class="gr-val">{{ fmtGr(grVal) }} dB</span>
       </div>
-      <div class="graph-lbl">Brick Wall Curve</div>
+      <div class="graph-lbl">{{ t('dsp.brickWallCurve') }}</div>
       <svg :ref="setSvgRef" :viewBox="`0 0 ${W} ${H}`" width="100%" class="dyn-svg">
         <rect x="0" y="0" :width="W" :height="H" fill="#181b22" />
         <line
@@ -262,12 +264,12 @@ defineExpose({ enabled })
         />
         <span class="ctrl-name" style="color: #c62828">LIMITER</span>
         <span class="onoff" :class="enabled ? 'onoff--lim' : 'onoff--off'">{{
-          enabled ? 'ON' : 'OFF'
+          enabled ? t('common.on') : t('common.off')
         }}</span>
       </div>
       <div class="param-list">
         <div v-for="d in PARAMS" :key="d.key" class="param-row">
-          <span class="param-lbl">{{ d.label }}</span>
+          <span class="param-lbl">{{ t(d.i18nKey) }}</span>
           <q-input
             v-model.number="lim[d.key]"
             type="number"

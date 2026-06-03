@@ -24,6 +24,11 @@ export const useSettingsStore = defineStore('settings', {
 
     // System
     rebooting: false,
+
+    // Log
+    log: { enabled: false, debug: false },
+    logLoading: false,
+    logSaving: false,
   }),
 
   actions: {
@@ -71,6 +76,40 @@ export const useSettingsStore = defineStore('settings', {
         return { ok: false, error: e?.response?.data?.error ?? 'Failed to save' }
       } finally {
         this.serialSaving = false
+      }
+    },
+
+    // ── Log (HTTP) ────────────────────────────────────────────
+    async fetchLog() {
+      this.logLoading = true
+      try {
+        const { data } = await api.get('/system/log')
+        if (data && typeof data === 'object') {
+          if (typeof data.enabled === 'boolean') this.log.enabled = data.enabled
+          if (typeof data.debug === 'boolean') this.log.debug = data.debug
+        }
+      } catch (e) {
+        console.error('[log] fetch failed:', e)
+      } finally {
+        this.logLoading = false
+      }
+    },
+
+    async saveLog(payload) {
+      this.logSaving = true
+      try {
+        const { data } = await api.post('/system/log', payload)
+        if (data && typeof data === 'object') {
+          if (typeof data.enabled === 'boolean') this.log.enabled = data.enabled
+          if (typeof data.debug === 'boolean') this.log.debug = data.debug
+        } else {
+          Object.assign(this.log, payload)
+        }
+        return { ok: true }
+      } catch (e) {
+        return { ok: false, error: e?.response?.data?.error ?? 'Failed to save' }
+      } finally {
+        this.logSaving = false
       }
     },
 

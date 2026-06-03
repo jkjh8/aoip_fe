@@ -1,11 +1,13 @@
 <script setup>
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAoipStore } from 'src/stores/aoip'
 import { useChannelPanel } from 'src/composables/useChannelPanel'
 import LevelMeter from './LevelMeter.vue'
 import InputDspDialog from './InputDspDialog.vue'
 
 const aoipStore = useAoipStore()
+const { t } = useI18n()
 
 const props = defineProps({
   sectionTitle: { type: String, default: null },
@@ -47,11 +49,16 @@ const sectionColor = computed(() => displaySections.value[0]?.color ?? '#546e7a'
 
 const dspTargetId      = ref(null)
 const dspTargetRightId = ref(null)
+const dspMirrored = ref(false)
 const dspOpen = ref(false)
 function openDsp(group) {
   dspTargetId.value      = group.stereo ? group.left.id : group.ch.id
-  dspTargetRightId.value = group.stereo ? group.right.id
-    : (group.linked && group.pairFirst && group.partner ? group.partner.id : null)
+  // Stream pairs do explicit dual emit; I2S analog stereo is mirrored by the backend
+  // but still needs the partner channel for the stereo level meter.
+  dspTargetRightId.value = group.stereo
+    ? group.right.id
+    : (group.linked && group.partner ? group.partner.id : null)
+  dspMirrored.value = !group.stereo && !!group.linked
   dspOpen.value = true
 }
 const dspChannel      = computed(() => aoipStore.channels.inputs.find(c => c.id === dspTargetId.value) ?? null)
@@ -73,13 +80,13 @@ function dspChipClass(group, ...keys) {
 <template>
   <q-card style="background-color: #fff; width: 100%">
     <q-card-section class="card-header" :style="`border-top: 3px solid ${sectionColor}`">
-      <span class="card-title">{{ sectionTitle ?? 'Inputs' }}</span>
-      <span class="card-dir">Input</span>
+      <span class="card-title">{{ sectionTitle ?? t('mixer.inputs') }}</span>
+      <span class="card-dir">{{ t('mixer.input') }}</span>
       <q-btn v-if="sectionTitle === 'Stream'" flat dense round size="xs" icon="add" color="deep-orange-7" class="q-ml-auto">
-        <q-tooltip>스트림 관리</q-tooltip>
+        <q-tooltip>{{ t('mixer.manageStreams') }}</q-tooltip>
         <q-menu>
           <q-list style="min-width: 260px">
-            <q-item-label header class="text-caption q-py-xs">Input 스트림</q-item-label>
+            <q-item-label header class="text-caption q-py-xs">{{ t('mixer.inputStreams') }}</q-item-label>
             <template v-if="allStreams.length">
               <q-item v-for="s in allStreams" :key="s.client" dense>
                 <q-item-section avatar style="min-width:24px; padding-right:0">
@@ -90,28 +97,28 @@ function dspChipClass(group, ...keys) {
                   <div class="row no-wrap">
                     <q-btn v-if="!s.running" flat round dense size="xs" icon="play_circle" color="positive"
                       v-close-popup @click="emit('activate-stream', s)">
-                      <q-tooltip>시작</q-tooltip>
+                      <q-tooltip>{{ t('common.start') }}</q-tooltip>
                     </q-btn>
                     <template v-else>
                       <q-btn flat round dense size="xs" icon="edit" color="grey-6"
                         v-close-popup @click="emit('edit-stream', s)">
-                        <q-tooltip>설정 수정</q-tooltip>
+                        <q-tooltip>{{ t('mixer.editConfig') }}</q-tooltip>
                       </q-btn>
                       <q-btn flat round dense size="xs" icon="stop_circle" color="negative"
                         v-close-popup @click="emit('stop-stream', s)">
-                        <q-tooltip>중지</q-tooltip>
+                        <q-tooltip>{{ t('common.stop') }}</q-tooltip>
                       </q-btn>
                     </template>
                     <q-btn flat round dense size="xs" icon="delete_outline" color="grey-5"
                       v-close-popup @click.stop="emit('remove-stream', s.client)">
-                      <q-tooltip>삭제</q-tooltip>
+                      <q-tooltip>{{ t('common.delete') }}</q-tooltip>
                     </q-btn>
                   </div>
                 </q-item-section>
               </q-item>
             </template>
             <q-item v-else disable dense>
-              <q-item-section class="text-grey-5 text-caption">스트림 없음</q-item-section>
+              <q-item-section class="text-grey-5 text-caption">{{ t('mixer.noStreams') }}</q-item-section>
             </q-item>
           </q-list>
         </q-menu>
@@ -136,7 +143,7 @@ function dspChipClass(group, ...keys) {
               <div class="ch-info">
                 <span class="ch-name">{{ groupLabel(group) }}</span>
                 <span class="ch-mode" :class="group.stereo ? 'ch-mode--st' : 'ch-mode--mono'">
-                  {{ group.stereo ? 'Stereo' : 'Mono' }}
+                  {{ group.stereo ? t('common.stereo') : t('common.mono') }}
                 </span>
               </div>
               <div class="slider-wrap">
@@ -184,7 +191,7 @@ function dspChipClass(group, ...keys) {
               @click="doToggleMute(group)"
             >
               <q-tooltip class="bg-grey-4 text-grey-9" anchor="top middle" self="bottom middle" :offset="[0, 4]">
-                Mute
+                {{ t('common.mute') }}
               </q-tooltip>
             </q-btn>
             <LevelMeter
@@ -206,7 +213,7 @@ function dspChipClass(group, ...keys) {
               @click="toggleAnalogLink(group)"
             >
               <q-icon :name="group.linked ? 'link' : 'link_off'" size="11px" />
-              <span>{{ group.linked ? 'Linked' : 'Link' }}</span>
+              <span>{{ group.linked ? t('mixer.linked') : t('mixer.link') }}</span>
             </button>
           </div>
         </template>
@@ -217,12 +224,14 @@ function dspChipClass(group, ...keys) {
       v-model="dspOpen"
       :channel="dspChannel"
       :channel-right="dspChannelRight"
+      :mirrored="dspMirrored"
     />
   </q-card>
 </template>
 
 <style scoped>
 .ch-strip--no-bottom { border-bottom: none !important; }
+.ch-strip--slave { opacity: 0.45; }
 .link-connector {
   display: flex;
   align-items: center;
@@ -250,7 +259,6 @@ function dspChipClass(group, ...keys) {
 .link-btn:hover { background: #e3f2fd; border-color: #90caf9; color: #1976d2; }
 .link-btn--linked { background: #e3f2fd; border-color: #90caf9; color: #1565c0; font-weight: 700; }
 .link-btn--linked:hover { background: #ffebee; border-color: #ef9a9a; color: #c62828; }
-.ch-strip--slave { opacity: 0.45; pointer-events: none; }
 .dsp-bar { display: flex; gap: 2px; cursor: pointer; padding: 3px 0 1px; flex-shrink: 0; }
 .dchip {
   font-size: 7px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;

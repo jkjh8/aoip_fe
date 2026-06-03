@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { socket } from 'src/boot/socket'
 import { useAoipStore } from 'src/stores/aoip'
 import { gainToDb, dbToGain } from 'src/composables/useChannelControl'
@@ -12,6 +13,7 @@ const props = defineProps({
 })
 
 const aoipStore = useAoipStore()
+const { t } = useI18n()
 
 const levelVal = computed(() => {
   const list =
@@ -58,7 +60,7 @@ defineExpose({ init })
 <template>
   <div class="level-col">
     <div class="lc-meter-area">
-      <div class="lc-hdr">LEVEL</div>
+      <div class="lc-hdr">{{ t('mixer.level') }}</div>
       <LevelMeter
         style="flex: 1; min-height: 0"
         :channels="
@@ -74,7 +76,7 @@ defineExpose({ init })
       <div class="lc-level-val">{{ levelVal > -119 ? levelVal.toFixed(1) : '---' }}</div>
     </div>
     <div class="lc-vol-area">
-      <div class="lc-hdr">VOL</div>
+      <div class="lc-hdr">{{ t('mixer.vol') }}</div>
       <q-slider
         :model-value="Number.isFinite(volDb) ? volDb : 0"
         :min="-60"

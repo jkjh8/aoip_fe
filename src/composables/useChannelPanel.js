@@ -15,9 +15,7 @@ export function useChannelPanel(channelType) {
 
   function toggleAnalogLink() {
     const next = isI2sLinked.value ? 'mono' : 'stereo'
-    console.log('[toggleAnalogLink]', channelType, '→', next, 'connected:', socket.connected)
     socket.emit('dsp:mode:set', { direction: channelType, mode: next }, (res) => {
-      console.log('[dsp:mode:set ack]', res)
       if (res?.ok && res.mode) aoipState.dspMode = res.mode
       else if (res && !res.ok) console.warn('[dsp:mode:set] failed:', res.error)
     })

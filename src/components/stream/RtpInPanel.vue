@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 defineEmits(['refresh', 'edit'])
 
@@ -8,6 +9,7 @@ const props = defineProps({
   detail: { type: Object, default: () => ({}) },
   busy: { type: Boolean, default: false },
 })
+const { t } = useI18n()
 const fillMs = computed(() => props.s.bufStats?.fillMs ?? props.s.stats?.bufStats?.fillMs ?? 0)
 const statsExpanded = ref(false)
 </script>
@@ -15,7 +17,7 @@ const statsExpanded = ref(false)
 <template>
   <!-- Receive Stream stats -->
   <div class="st-section-label">
-    Receive Stream
+    {{ t('stream.receiveStream') }}
     <q-icon
       :name="statsExpanded ? 'expand_less' : 'expand_more'"
       size="14px"
@@ -23,28 +25,28 @@ const statsExpanded = ref(false)
       class="lbl-toggle"
       @click="statsExpanded = !statsExpanded"
     >
-      <q-tooltip>{{ statsExpanded ? '접기' : '상세 통계' }}</q-tooltip>
+      <q-tooltip>{{ statsExpanded ? t('stream.collapse') : t('stream.detailedStats') }}</q-tooltip>
     </q-icon>
   </div>
   <div class="st-strip cs-wrap">
     <span class="cs-item cs-w-src">
-      <span class="cs-key">Src</span>
+      <span class="cs-key">{{ t('stream.src') }}</span>
       <span class="cs-val">
         <template v-if="s.stats?.srcIp">
           <span class="src-ip">{{ s.stats.srcIp }}</span>
           <span class="src-port">:{{ s.stats.srcPort }}</span>
         </template>
-        <span v-else class="cs-muted">{{ s.ready ? 'Detecting…' : 'None' }}</span>
+        <span v-else class="cs-muted">{{ s.ready ? t('stream.detecting') : t('common.none') }}</span>
       </span>
     </span>
     <span class="cs-item cs-w-codec">
-      <span class="cs-key">Codec</span>
+      <span class="cs-key">{{ t('stream.codec') }}</span>
       <span class="cs-val" :class="s.stats?.codec && s.stats.codec !== 'unknown' ? '' : 'cs-muted'">
         {{ s.stats?.codec && s.stats.codec !== 'unknown' ? s.stats.codec : '—' }}
       </span>
     </span>
     <span class="cs-item cs-w-bitrate">
-      <span class="cs-key">Bitrate</span>
+      <span class="cs-key">{{ t('stream.bitrate') }}</span>
       <span class="cs-val" :class="s.stats?.bitrateKbps > 0 ? '' : 'cs-muted'">
         {{ s.stats?.bitrateKbps > 0 ? s.stats.bitrateKbps + ' kbps' : '—' }}
       </span>
@@ -52,23 +54,23 @@ const statsExpanded = ref(false)
   </div>
   <div v-if="statsExpanded" class="st-strip cs-wrap st-stats-extra">
     <span class="cs-item cs-w-ms">
-      <span class="cs-key">Buf</span>
+      <span class="cs-key">{{ t('stream.buf') }}</span>
       <span class="cs-val" :class="s.stats?.bufUsedMs > 0 ? '' : 'cs-muted'">
         {{ s.stats?.bufUsedMs > 0 ? s.stats.bufUsedMs + ' ms' : '—' }}
       </span>
     </span>
     <span class="cs-item cs-w-ms">
-      <span class="cs-key">Fill</span>
+      <span class="cs-key">{{ t('stream.fill') }}</span>
       <span class="cs-val" :class="fillMs > 0 ? '' : 'cs-muted'">
         {{ fillMs > 0 ? fillMs + ' ms' : '—' }}
       </span>
     </span>
     <span class="cs-item cs-w-pkts">
-      <span class="cs-key">Pkts</span>
+      <span class="cs-key">{{ t('stream.pkts') }}</span>
       <span class="cs-val">{{ (s.stats?.packets ?? 0).toLocaleString() }}</span>
     </span>
     <span class="cs-item cs-w-drops">
-      <span class="cs-key">Drops</span>
+      <span class="cs-key">{{ t('stream.drops') }}</span>
       <span class="cs-val" :class="(s.stats?.drops ?? 0) > 0 ? 'cs-warn' : ''">
         {{ (s.stats?.drops ?? 0).toLocaleString() }}
       </span>

@@ -1,6 +1,9 @@
 <script setup>
 import { ref, computed, watch, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { socket } from 'src/boot/socket'
+
+const { t } = useI18n()
 import 'src/css/dsp-dialog.css'
 import EqPanel from './dsp/EqPanel.vue'
 import GateTab from './dsp/GateTab.vue'
@@ -11,12 +14,17 @@ const props = defineProps({
   modelValue: Boolean,
   channel: Object,
   channelRight: Object,
+  // When true, the backend mirrors DSP changes between channel and channelRight,
+  // so the dialog should only emit to one channel (the meter still shows both).
+  mirrored: Boolean,
 })
 const emit = defineEmits(['update:modelValue'])
 
 // ── Stereo link ──────────────────────────────────────────────
 const linked = ref(true)
-const chR = computed(() => (linked.value ? props.channelRight : null))
+const chR = computed(() =>
+  !props.mirrored && linked.value ? props.channelRight : null,
+)
 
 // ── Component refs ───────────────────────────────────────────
 const eqRef = ref(null)
@@ -120,12 +128,13 @@ watch(
       <!-- Header -->
       <div class="dsp-hd">
         <q-icon name="tune" size="18px" style="color: #5a6a8a" />
-        <span class="dsp-hd-title">INPUT DSP</span>
+        <span class="dsp-hd-title">{{ t('mixer.inputDsp') }}</span>
         <span class="dsp-hd-ch">{{ channel?.label }}</span>
         <template v-if="channelRight">
           <span class="dsp-hd-sep">·</span>
           <span class="dsp-hd-ch dsp-hd-ch--r">{{ channelRight?.label }}</span>
           <q-btn
+            v-if="!mirrored"
             :icon="linked ? 'link' : 'link_off'"
             :color="linked ? 'primary' : 'blue-grey-4'"
             flat
@@ -192,7 +201,7 @@ watch(
         <!-- LEFT: TRIM + HPF -->
         <div class="side-col">
           <div class="side-block">
-            <div class="blk-hdr">TRIM</div>
+            <div class="blk-hdr">{{ t('mixer.trim') }}</div>
             <div class="trim-vert">
               <q-slider
                 :model-value="Number.isFinite(trimDb) ? trimDb : 0"
@@ -238,7 +247,7 @@ watch(
             </div>
           </div>
           <div class="side-block side-block--sep">
-            <div class="blk-hdr hpf-hdr">HPF</div>
+            <div class="blk-hdr hpf-hdr">{{ t('mixer.hpf') }}</div>
             <div class="hpf-vert">
               <div class="hpf-toggle-row">
                 <q-toggle
@@ -250,10 +259,10 @@ watch(
                   @update:model-value="hpfToggle"
                 />
                 <span class="toggle-lbl" :class="hpfEnabled ? 'on-r' : 'off'">{{
-                  hpfEnabled ? 'ON' : 'OFF'
+                  hpfEnabled ? t('common.on') : t('common.off')
                 }}</span>
               </div>
-              <div class="blk-hdr q-mt-sm">Frequency</div>
+              <div class="blk-hdr q-mt-sm">{{ t('mixer.frequency') }}</div>
               <q-input
                 v-model.number="hpfFreqLocal"
                 type="number"
@@ -264,7 +273,7 @@ watch(
                 @blur="hpfSetFreq(hpfFreqLocal)"
                 @keydown.enter.prevent="hpfSetFreq(hpfFreqLocal)"
               />
-              <div class="blk-hdr q-mt-sm">Slope dB/oct</div>
+              <div class="blk-hdr q-mt-sm">{{ t('mixer.slopePerOct') }}</div>
               <q-select
                 :model-value="hpfSlopeLocal"
                 :options="[

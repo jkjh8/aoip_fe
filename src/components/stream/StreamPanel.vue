@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { socket } from 'src/boot/socket'
 import { useQuasar } from 'quasar'
 import { useAoipStore } from 'src/stores/aoip'
@@ -15,6 +16,7 @@ const props = defineProps({
   meterChannels: { type: Array, default: null },
 })
 
+const { t } = useI18n()
 const aoipState = useAoipStore()
 const $q = useQuasar()
 
@@ -45,10 +47,10 @@ const busy = ref(false)
 function toggleStream() {
   if (props.s.running) {
     $q.dialog({
-      title: '스트림 정지',
-      message: `"${props.detail?.name ?? props.s.client}" 스트림을 정지하시겠습니까?`,
-      cancel: { flat: true, label: '취소' },
-      ok: { unelevated: true, label: '정지', color: 'negative' },
+      title: t('stream.dialogs.stopTitle'),
+      message: t('stream.dialogs.stopMessage', { name: props.detail?.name ?? props.s.client }),
+      cancel: { flat: true, label: t('common.cancel') },
+      ok: { unelevated: true, label: t('common.stop'), color: 'negative' },
       persistent: true,
     }).onOk(() => {
       busy.value = true
@@ -167,7 +169,7 @@ async function applyRtpOut({ protocol, codec, bitrate, sampleRate, channels, hos
         <!-- Right: level meter + edit + delete + expand -->
         <div class="row items-center no-wrap">
           <q-icon style="cursor: pointer" size="sm" name="edit" color="primary" @click="openEdit">
-            <q-tooltip>설정 수정</q-tooltip>
+            <q-tooltip>{{ t('mixer.editConfig') }}</q-tooltip>
           </q-icon>
           <q-icon
             style="cursor: pointer"
@@ -176,7 +178,7 @@ async function applyRtpOut({ protocol, codec, bitrate, sampleRate, channels, hos
             color="negative"
             @click="toggleStream"
           >
-            <q-tooltip>STOP</q-tooltip>
+            <q-tooltip>{{ t('common.stop') }}</q-tooltip>
           </q-icon>
           <LevelMeter
             style="height: 40px; margin-left: 8px"

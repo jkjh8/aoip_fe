@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useDialogPluginComponent } from 'quasar'
 import { socket } from 'src/boot/socket'
 import { useAoipStore } from 'src/stores/aoip'
@@ -9,6 +10,7 @@ const props = defineProps({
 })
 
 defineEmits([...useDialogPluginComponent.emits])
+const { t } = useI18n()
 const { dialogRef, onDialogHide, onDialogOK } = useDialogPluginComponent()
 
 const aoipState = useAoipStore()
@@ -56,16 +58,16 @@ const form = ref({
 
 function confirm() {
   const f = form.value
-  if (!f.name.trim()) { error.value = '이름을 입력하세요'; return }
-  if (!f.address.trim()) { error.value = '주소를 입력하세요'; return }
+  if (!f.name.trim()) { error.value = t('aes67.errorNameRequired'); return }
+  if (!f.address.trim()) { error.value = t('aes67.errorAddressRequired'); return }
   const map = Array.from({ length: f.chUnit }, (_, i) => f.chStart + i)
   const others = sources.value.filter((s) => s.id !== props.source.id)
   const addrConflict = others.find((s) => s.address === f.address.trim())
-  if (addrConflict) { error.value = `주소 ${f.address.trim()}는 "${addrConflict.name}"에서 이미 사용 중입니다`; return }
+  if (addrConflict) { error.value = t('aes67.errorAddressConflict', { address: f.address.trim(), name: addrConflict.name }); return }
   const mapSet = new Set(map)
   const chConflict = others.find((s) => (s.map ?? []).some((ch) => mapSet.has(ch)))
   if (chConflict) {
-    error.value = `채널이 "${chConflict.name}"과 겹칩니다 (${chConflict.map.filter((ch) => mapSet.has(ch)).map((ch) => `Ch ${ch + 1}`).join(', ')})`
+    error.value = t('aes67.errorChannelConflict', { name: chConflict.name, channels: chConflict.map.filter((ch) => mapSet.has(ch)).map((ch) => `Ch ${ch + 1}`).join(', ') })
     return
   }
   busy.value = true
@@ -90,41 +92,41 @@ function confirm() {
   <q-dialog ref="dialogRef" persistent @hide="onDialogHide">
     <q-card style="min-width: 400px">
       <q-card-section class="dialog-head">
-        <span class="dialog-title">Edit AES67 Source</span>
+        <span class="dialog-title">{{ t('aes67.editSourceTitle') }}</span>
       </q-card-section>
       <q-separator />
       <q-card-section class="dialog-body">
         <div class="field-group">
-          <label class="field-label">이름</label>
+          <label class="field-label">{{ t('aes67.name') }}</label>
           <q-input v-model="form.name" dense outlined autofocus />
         </div>
         <div class="field-group">
-          <label class="field-label">Multicast Address</label>
+          <label class="field-label">{{ t('aes67.multicastAddress') }}</label>
           <q-input v-model="form.address" dense outlined class="font-mono" />
         </div>
         <div class="dlg-row">
           <div class="field-group" style="flex:1">
-            <label class="field-label">Codec</label>
+            <label class="field-label">{{ t('stream.codec') }}</label>
             <q-select v-model="form.codec" :options="codecOptions" dense outlined emit-value map-options />
           </div>
           <div class="field-group" style="flex:1">
-            <label class="field-label">Samples / Packet</label>
+            <label class="field-label">{{ t('aes67.samplesPerPacket') }}</label>
             <q-select v-model="form.spp" :options="sppOptions" dense outlined emit-value map-options />
           </div>
         </div>
         <div class="dlg-row">
           <div class="field-group" style="flex:1">
-            <label class="field-label">채널 단위</label>
+            <label class="field-label">{{ t('aes67.channelMode') }}</label>
             <q-select v-model="form.chUnit" :options="chUnitOptions" emit-value map-options dense outlined
               @update:model-value="(val) => { form.chStart = firstAvailableSlot(val) }" />
           </div>
           <div class="field-group" style="flex:2">
-            <label class="field-label">채널 슬롯</label>
+            <label class="field-label">{{ t('aes67.channelSlot') }}</label>
             <q-select v-model="form.chStart" :options="chSlotOptions(form.chUnit)"
               emit-value map-options dense outlined option-disable="disable" />
           </div>
           <div class="field-group" style="flex:1">
-            <label class="field-label">TTL</label>
+            <label class="field-label">{{ t('aes67.ttl') }}</label>
             <q-input v-model.number="form.ttl" dense outlined type="number" :min="1" />
           </div>
         </div>
@@ -132,8 +134,8 @@ function confirm() {
       </q-card-section>
       <q-separator />
       <q-card-actions align="right" class="dialog-actions">
-        <q-btn flat label="취소" color="grey-7" v-close-popup />
-        <q-btn unelevated label="저장" color="blue-7" :loading="busy" @click="confirm" />
+        <q-btn flat :label="t('common.cancel')" color="grey-7" v-close-popup />
+        <q-btn unelevated :label="t('common.save')" color="blue-7" :loading="busy" @click="confirm" />
       </q-card-actions>
     </q-card>
   </q-dialog>

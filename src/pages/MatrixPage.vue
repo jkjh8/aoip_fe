@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
+import { useI18n } from 'vue-i18n'
 import { socket } from 'src/boot/socket'
 import { useAoipStore } from 'src/stores/aoip'
 import { useChannelPanel } from 'src/composables/useChannelPanel'
@@ -13,6 +14,7 @@ import RtpOutStartDialog from 'src/components/stream/RtpOutStartDialog.vue'
 
 const aoipState = useAoipStore()
 const $q = useQuasar()
+const { t } = useI18n()
 
 const { channelSections: inputSections } = useChannelPanel('input')
 const { channelSections: outputSections } = useChannelPanel('output')
@@ -25,6 +27,12 @@ const interfaceTypes = computed(() => {
   ])
   return ORDER.filter((t) => titles.has(t))
 })
+
+const COLLAPSIBLE_TYPES = new Set(['Stream', 'AES67'])
+const collapsed = ref({})
+function toggleCollapsed(type) {
+  collapsed.value[type] = !collapsed.value[type]
+}
 
 // ── Stream management ─────────────────────────────────────
 const apiBase = process.env.DEV
@@ -76,7 +84,7 @@ function activateInputStream(s) {
       })
       const data = await res.json()
       if (data.ok) fetchStreamDetail(s.client)
-      else $q.notify({ type: 'negative', message: data.error ?? '시작 실패' })
+      else $q.notify({ type: 'negative', message: data.error ?? t('errors.startFailed') })
     } catch (e) { console.error('[stream] activate in failed', e) }
   })
 }
@@ -93,7 +101,7 @@ function activateOutputStream(s) {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       })
       const data = await res.json()
-      if (!data.ok) { $q.notify({ type: 'negative', message: data.error ?? '시작 실패' }); return }
+      if (!data.ok) { $q.notify({ type: 'negative', message: data.error ?? t('errors.startFailed') }); return }
       if (host && port) {
         await fetch(`${apiBase}/api/streams/rtp/${s.client}/target`, {
           method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -121,7 +129,7 @@ function editInputStream(stream) {
       })
       const data = await res.json()
       if (data.ok) fetchStreamDetail(stream.client)
-      else $q.notify({ type: 'negative', message: data.error ?? '설정 실패' })
+      else $q.notify({ type: 'negative', message: data.error ?? t('errors.configFailed') })
     } catch (e) { console.error('[stream] edit in failed', e) }
   })
 }
@@ -138,7 +146,7 @@ function editOutputStream(stream) {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       })
       const data = await res.json()
-      if (!data.ok) { $q.notify({ type: 'negative', message: data.error ?? '설정 실패' }); return }
+      if (!data.ok) { $q.notify({ type: 'negative', message: data.error ?? t('errors.configFailed') }); return }
       if (host && port) {
         await fetch(`${apiBase}/api/streams/rtp/${stream.client}/target`, {
           method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -154,13 +162,13 @@ function editOutputStream(stream) {
 function stopInputStream(stream) {
   const name = streamDetails.value[stream.client]?.name ?? stream.client
   $q.dialog({
-    title: '스트림 중지', message: `"${name}" 스트림을 중지하시겠습니까?`,
-    cancel: { flat: true, label: '취소' },
-    ok: { unelevated: true, label: '중지', color: 'negative' },
+    title: t('stream.dialogs.stopTitle'), message: t('stream.dialogs.stopMessage', { name }),
+    cancel: { flat: true, label: t('common.cancel') },
+    ok: { unelevated: true, label: t('common.stop'), color: 'negative' },
     persistent: true,
   }).onOk(() => {
     socket.emit('rtp:stream:stop', { client: stream.client }, (res) => {
-      if (!res?.ok) $q.notify({ type: 'negative', message: res?.error ?? '중지 실패' })
+      if (!res?.ok) $q.notify({ type: 'negative', message: res?.error ?? t('errors.stopFailed') })
     })
   })
 }
@@ -168,13 +176,13 @@ function stopInputStream(stream) {
 function stopOutputStream(stream) {
   const name = streamDetails.value[stream.client]?.name ?? stream.client
   $q.dialog({
-    title: '스트림 중지', message: `"${name}" 스트림을 중지하시겠습니까?`,
-    cancel: { flat: true, label: '취소' },
-    ok: { unelevated: true, label: '중지', color: 'negative' },
+    title: t('stream.dialogs.stopTitle'), message: t('stream.dialogs.stopMessage', { name }),
+    cancel: { flat: true, label: t('common.cancel') },
+    ok: { unelevated: true, label: t('common.stop'), color: 'negative' },
     persistent: true,
   }).onOk(() => {
     socket.emit('rtp:stream:stop', { client: stream.client }, (res) => {
-      if (!res?.ok) $q.notify({ type: 'negative', message: res?.error ?? '중지 실패' })
+      if (!res?.ok) $q.notify({ type: 'negative', message: res?.error ?? t('errors.stopFailed') })
     })
   })
 }
@@ -183,13 +191,13 @@ function stopOutputStream(stream) {
 function removeStream(client) {
   const name = streamDetails.value[client]?.name ?? client
   $q.dialog({
-    title: '스트림 삭제', message: `"${name}" 스트림을 삭제하시겠습니까?`,
-    cancel: { flat: true, label: '취소' },
-    ok: { unelevated: true, label: '삭제', color: 'negative' },
+    title: t('stream.dialogs.deleteTitle'), message: t('stream.dialogs.deleteMessage', { name }),
+    cancel: { flat: true, label: t('common.cancel') },
+    ok: { unelevated: true, label: t('common.delete'), color: 'negative' },
     persistent: true,
   }).onOk(() => {
     socket.emit('rtp:stream:delete', { client }, (res) => {
-      if (!res?.ok) $q.notify({ type: 'negative', message: res?.error ?? '삭제 실패' })
+      if (!res?.ok) $q.notify({ type: 'negative', message: res?.error ?? t('errors.deleteFailed') })
       else delete streamDetails.value[client]
     })
   })
@@ -199,60 +207,75 @@ function removeStream(client) {
 <template>
   <q-page>
     <div v-if="!aoipState.connected" class="row justify-center q-mt-xl">
-      <q-chip color="negative" text-color="white" icon="wifi_off">lost connection</q-chip>
+      <q-chip color="negative" text-color="white" icon="wifi_off">{{ t('errors.lostConnection') }}</q-chip>
     </div>
 
     <div v-else class="q-pa-md">
-      <div v-for="type in interfaceTypes" :key="type" class="row q-gutter-md q-mb-md">
+      <div v-for="type in interfaceTypes" :key="type" class="q-mb-md">
 
-        <!-- AES67: per-card rendering -->
-        <template v-if="type === 'AES67'">
-          <div class="col panel-col panel-col--sticky">
-            <MatrixAes67Input style="width:100%" />
-          </div>
-          <div class="col panel-col">
-            <MatrixAes67Output style="width:100%" />
-          </div>
-        </template>
+        <!-- Collapsible header for Stream / AES67 -->
+        <div
+          v-if="COLLAPSIBLE_TYPES.has(type)"
+          class="section-header row items-center q-px-sm q-py-xs q-mb-sm cursor-pointer"
+          @click="toggleCollapsed(type)"
+        >
+          <q-icon :name="collapsed[type] ? 'chevron_right' : 'expand_more'" size="20px" />
+          <div class="text-subtitle2 q-ml-xs">{{ type }}</div>
+          <q-space />
+          <q-icon :name="collapsed[type] ? 'unfold_more' : 'unfold_less'" size="18px" />
+        </div>
 
-        <!-- Stream: enhanced panels with activate/edit/stop -->
-        <template v-else-if="type === 'Stream'">
-          <div class="col panel-col panel-col--sticky">
-            <InputPanel
-              section-title="Stream"
-              style="width:100%"
-              :all-streams="allInputStreams"
-              :stream-details="streamDetails"
-              @activate-stream="activateInputStream"
-              @remove-stream="removeStream"
-              @edit-stream="editInputStream"
-              @stop-stream="stopInputStream"
-            />
-          </div>
-          <div class="col panel-col">
-            <OutputPanel
-              section-title="Stream"
-              style="width:100%"
-              :all-streams="allOutputStreams"
-              :stream-details="streamDetails"
-              @activate-stream="activateOutputStream"
-              @remove-stream="removeStream"
-              @edit-stream="editOutputStream"
-              @stop-stream="stopOutputStream"
-            />
-          </div>
-        </template>
+        <div v-show="!collapsed[type]" class="row q-gutter-md">
 
-        <!-- Analog / Other: unchanged -->
-        <template v-else>
-          <div class="col panel-col panel-col--sticky">
-            <InputPanel :section-title="type" style="width:100%" />
-          </div>
-          <div class="col panel-col">
-            <OutputPanel :section-title="type" style="width:100%" />
-          </div>
-        </template>
+          <!-- AES67: per-card rendering -->
+          <template v-if="type === 'AES67'">
+            <div class="col panel-col panel-col--sticky">
+              <MatrixAes67Input style="width:100%" />
+            </div>
+            <div class="col panel-col">
+              <MatrixAes67Output style="width:100%" />
+            </div>
+          </template>
 
+          <!-- Stream: enhanced panels with activate/edit/stop -->
+          <template v-else-if="type === 'Stream'">
+            <div class="col panel-col panel-col--sticky">
+              <InputPanel
+                section-title="Stream"
+                style="width:100%"
+                :all-streams="allInputStreams"
+                :stream-details="streamDetails"
+                @activate-stream="activateInputStream"
+                @remove-stream="removeStream"
+                @edit-stream="editInputStream"
+                @stop-stream="stopInputStream"
+              />
+            </div>
+            <div class="col panel-col">
+              <OutputPanel
+                section-title="Stream"
+                style="width:100%"
+                :all-streams="allOutputStreams"
+                :stream-details="streamDetails"
+                @activate-stream="activateOutputStream"
+                @remove-stream="removeStream"
+                @edit-stream="editOutputStream"
+                @stop-stream="stopOutputStream"
+              />
+            </div>
+          </template>
+
+          <!-- Analog / Other: unchanged -->
+          <template v-else>
+            <div class="col panel-col panel-col--sticky">
+              <InputPanel :section-title="type" style="width:100%" />
+            </div>
+            <div class="col panel-col">
+              <OutputPanel :section-title="type" style="width:100%" />
+            </div>
+          </template>
+
+        </div>
       </div>
     </div>
   </q-page>
@@ -266,5 +289,13 @@ function removeStream(client) {
   position: sticky;
   top: 0;
   align-self: flex-start;
+}
+.section-header {
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 4px;
+  user-select: none;
+}
+.section-header:hover {
+  background: rgba(0, 0, 0, 0.08);
 }
 </style>

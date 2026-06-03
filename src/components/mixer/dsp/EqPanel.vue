@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { socket } from 'src/boot/socket'
 import { useAoipStore } from 'src/stores/aoip'
 import {
@@ -11,6 +12,7 @@ import {
   EQ_CONSTANTS,
 } from 'src/composables/useEqFilter'
 
+const { t } = useI18n()
 const aoipStore = useAoipStore()
 
 const props = defineProps({
@@ -387,7 +389,7 @@ defineExpose({ bypass, enabledCount, hpf, toggleHpf, sendHpf, setHpfFreq, setHpf
             :color="bypass ? 'deep-orange-7' : 'blue-grey-2'"
             :text-color="bypass ? 'white' : 'blue-grey-8'"
             @click="toggleBypass"
-            >{{ bypass ? 'BYPASS' : 'ACTIVE' }}</q-btn
+            >{{ bypass ? t('mixer.bypass') : t('mixer.active') }}</q-btn
           >
           <q-btn
             no-caps
@@ -398,7 +400,7 @@ defineExpose({ bypass, enabledCount, hpf, toggleHpf, sendHpf, setHpfFreq, setHpf
             color="blue-grey-2"
             text-color="blue-grey-8"
             @click="allFlat"
-            >FLAT</q-btn
+            >{{ t('mixer.flat') }}</q-btn
           >
         </div>
       </div>
@@ -584,7 +586,7 @@ defineExpose({ bypass, enabledCount, hpf, toggleHpf, sendHpf, setHpfFreq, setHpf
         </div>
         <div v-if="selBand" class="band-pgrid">
           <div class="bpg-item">
-            <span class="bpg-lbl">Enable</span>
+            <span class="bpg-lbl">{{ t('common.enable') }}</span>
             <q-toggle
               class="q-mt-sm"
               :model-value="selBand.enabled"
@@ -595,10 +597,10 @@ defineExpose({ bypass, enabledCount, hpf, toggleHpf, sendHpf, setHpfFreq, setHpf
             />
           </div>
           <div class="bpg-item">
-            <span class="bpg-lbl">Type</span>
+            <span class="bpg-lbl">{{ t('mixer.type') }}</span>
             <q-select
               :model-value="selBand.type"
-              :options="BAND_TYPE_OPTIONS.map((t) => ({ label: BAND_TYPE_LABEL_MAP[t], value: t }))"
+              :options="BAND_TYPE_OPTIONS.map((opt) => ({ label: BAND_TYPE_LABEL_MAP[opt], value: opt }))"
               emit-value
               map-options
               dense
@@ -608,7 +610,7 @@ defineExpose({ bypass, enabledCount, hpf, toggleHpf, sendHpf, setHpfFreq, setHpf
             />
           </div>
           <div class="bpg-item">
-            <span class="bpg-lbl">Q</span>
+            <span class="bpg-lbl">{{ t('mixer.q') }}</span>
             <q-input
               v-model.number="selBand.q"
               type="number"
@@ -620,7 +622,7 @@ defineExpose({ bypass, enabledCount, hpf, toggleHpf, sendHpf, setHpfFreq, setHpf
             />
           </div>
           <div class="bpg-item">
-            <span class="bpg-lbl">Freq</span>
+            <span class="bpg-lbl">{{ t('mixer.frequency') }}</span>
             <q-input
               v-model.number="selBand.freq"
               type="number"
@@ -633,7 +635,7 @@ defineExpose({ bypass, enabledCount, hpf, toggleHpf, sendHpf, setHpfFreq, setHpf
             />
           </div>
           <div class="bpg-item">
-            <span class="bpg-lbl">Gain</span>
+            <span class="bpg-lbl">{{ t('mixer.gain') }}</span>
             <q-input
               v-model.number="selBand.gain"
               type="number"

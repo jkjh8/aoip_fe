@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
+import { useI18n } from 'vue-i18n'
 import { socket } from 'src/boot/socket'
 import { useAoipStore } from 'src/stores/aoip'
 import { useChannelPanel } from 'src/composables/useChannelPanel'
@@ -8,6 +9,7 @@ import LevelMeter from 'src/components/mixer/LevelMeter.vue'
 import Aes67SinkAddDialog from 'src/components/aes67/Aes67SinkAddDialog.vue'
 
 const $q = useQuasar()
+const { t } = useI18n()
 const aoipState = useAoipStore()
 
 const {
@@ -59,7 +61,7 @@ function sinkLocked(sink) {
 
 // ── Delete sink ───────────────────────────────────────────
 function removeSink(sink) {
-  if (!confirm(`"${sink.name}" 싱크를 삭제하시겠습니까?`)) return
+  if (!confirm(t('aes67.confirmRemoveSink', { name: sink.name }))) return
   socket.emit('aes67:sink:remove', { id: sink.id }, (res) => {
     if (res?.ok) refreshSinks()
   })
@@ -74,7 +76,7 @@ function hasAvailableSinkSlot() {
 
 function openAddSink() {
   if (!hasAvailableSinkSlot()) {
-    $q.notify({ type: 'negative', message: '할당 가능한 채널 슬롯이 없습니다 (최대 16ch)' })
+    $q.notify({ type: 'negative', message: t('errors.noChannelSlots') })
     return
   }
   $q.dialog({ component: Aes67SinkAddDialog }).onOk(() => refreshSinks())
@@ -84,13 +86,13 @@ function openAddSink() {
 <template>
   <q-card style="background-color: #fff; width: 100%">
     <q-card-section class="card-header" style="border-top: 3px solid #7b1fa2">
-      <span class="card-title">AES67</span>
-      <span class="card-dir">Input</span>
+      <span class="card-title">{{ t('aes67.title') }}</span>
+      <span class="card-dir">{{ t('mixer.input') }}</span>
       <q-btn
         flat dense round size="xs" icon="add" color="purple-7" class="q-ml-auto"
         :disable="!aoipState.aes67.ready" @click="openAddSink"
       >
-        <q-tooltip>Sink 추가</q-tooltip>
+        <q-tooltip>{{ t('aes67.addSink') }}</q-tooltip>
       </q-btn>
     </q-card-section>
     <q-separator />
@@ -101,11 +103,11 @@ function openAddSink() {
             <q-icon name="download" size="xs" color="green-7" />
             <span class="aes67-item-name">{{ sink.name }}</span>
             <q-badge v-if="sinkLocked(sink) !== null" outline :color="sinkLocked(sink) ? 'positive' : 'warning'" class="q-ml-xs">
-              {{ sinkLocked(sink) ? 'Connected' : 'Waiting' }}
+              {{ sinkLocked(sink) ? t('common.connected') : t('common.waiting') }}
             </q-badge>
             <q-btn flat dense round size="xs" icon="delete_outline" color="negative" class="q-ml-auto"
               @click="removeSink(sink)">
-              <q-tooltip>삭제</q-tooltip>
+              <q-tooltip>{{ t('common.delete') }}</q-tooltip>
             </q-btn>
           </div>
 
@@ -115,7 +117,7 @@ function openAddSink() {
             <div class="ch-main">
               <div class="ch-info">
                 <span class="ch-name">{{ ch.label }}</span>
-                <span class="ch-mode ch-mode--mono">Mono</span>
+                <span class="ch-mode ch-mode--mono">{{ t('common.mono') }}</span>
               </div>
               <div class="slider-wrap">
                 <div v-if="dragging[ch.id] !== undefined" class="slider-thumb-tip" :style="{ left: thumbLeft(dragging[ch.id]) }">
@@ -139,7 +141,7 @@ function openAddSink() {
               :color="ch.muted ? 'negative' : 'blue-grey-5'"
               @click="doToggleMute(g(ch))"
             >
-              <q-tooltip class="bg-grey-4 text-grey-9">Mute</q-tooltip>
+              <q-tooltip class="bg-grey-4 text-grey-9">{{ t('common.mute') }}</q-tooltip>
             </q-btn>
             <LevelMeter :channels="[{ level: ch.level, muted: ch.muted }]" :title="ch.label" />
           </div>
@@ -147,7 +149,7 @@ function openAddSink() {
 
         <div v-if="!sinks.length" class="aes67-empty">
           <q-icon name="download" size="32px" color="blue-grey-3" />
-          <span>{{ aoipState.aes67.ready ? '싱크 없음' : 'AES67 데몬이 실행 중이 아닙니다' }}</span>
+          <span>{{ aoipState.aes67.ready ? t('aes67.noSinks') : t('aes67.daemonOffline') }}</span>
         </div>
       </div>
     </q-card-section>

@@ -10,9 +10,9 @@ const serverUrl = process.env.DEV
 export const socket = io(serverUrl, {
   autoConnect: true,
   transports: ['websocket'],
-  reconnectionDelay: 1000,
-  reconnectionDelayMax: 5000,
-  timeout: 10000,
+  reconnectionDelay: 2000,
+  reconnectionDelayMax: 10000,
+  timeout: 20000,
 })
 
 function mergeDsp(newChannels, store) {

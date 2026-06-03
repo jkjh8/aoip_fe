@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { socket } from 'src/boot/socket'
 import { useAoipStore } from 'src/stores/aoip'
 
@@ -7,6 +8,7 @@ defineProps({ modelValue: Boolean })
 const emit = defineEmits(['update:modelValue'])
 
 const aoipState = useAoipStore()
+const { t } = useI18n()
 
 const inputs = computed(() => aoipState.filteredInputs)
 const outputs = computed(() => aoipState.filteredOutputs)
@@ -71,7 +73,7 @@ const outputLabelMap = computed(() => buildLabelMap(outputs.value))
     <q-card class="mx-card">
       <!-- 헤더 -->
       <q-card-section class="row items-center justify-between q-px-md q-py-sm">
-        <span class="st-panel-title">Crosspoint Matrix</span>
+        <span class="st-panel-title">{{ t('matrix.title') }}</span>
         <q-btn flat dense round icon="close" size="sm" @click="emit('update:modelValue', false)" />
       </q-card-section>
       <q-separator />
@@ -84,15 +86,15 @@ const outputLabelMap = computed(() => buildLabelMap(outputs.value))
               <!-- 코너 셀: IN/OUT 축 표시 -->
               <th class="mx-corner">
                 <div class="mx-corner-inner">
-                  <span class="mx-axis mx-axis--out">OUTPUT →</span>
+                  <span class="mx-axis mx-axis--out">{{ t('matrix.outputAxis') }}</span>
                   <div class="mx-corner-line" />
-                  <span class="mx-axis mx-axis--in">↓ INPUT</span>
+                  <span class="mx-axis mx-axis--in">{{ t('matrix.inputAxis') }}</span>
                 </div>
               </th>
               <!-- 출력 컬럼 헤더 -->
               <th v-for="out in outputs" :key="out.id" class="mx-col-head">
                 <div class="mx-col-inner">
-                  <span class="mx-col-tag" :style="`background:${typeColor(out.label)}`">
+                  <span class="mx-col-tag" :style="{ background: typeColor(out.label) }">
                     {{ typeTag(out.label) }}
                   </span>
                   <span class="mx-col-label">{{ outputLabelMap.get(out.id) }}</span>
@@ -104,7 +106,7 @@ const outputLabelMap = computed(() => buildLabelMap(outputs.value))
             <tr v-for="inp in inputs" :key="inp.id">
               <!-- 입력 행 헤더 -->
               <td class="mx-row-head">
-                <span class="mx-col-tag" :style="`background:${typeColor(inp.label)}`">
+                <span class="mx-col-tag" :style="{ background: typeColor(inp.label) }">
                   {{ typeTag(inp.label) }}
                 </span>
                 <span class="mx-col-label">{{ inputLabelMap.get(inp.id) }}</span>
@@ -115,6 +117,7 @@ const outputLabelMap = computed(() => buildLabelMap(outputs.value))
                 :key="out.id"
                 class="mx-cell"
                 :class="{ 'mx-cell--on': isConnected(inp.port, out.port) }"
+                :style="{ '--cell-color': typeColor(out.label) }"
                 @click="toggle(inp.port, out.port)"
               />
             </tr>
@@ -236,9 +239,10 @@ const outputLabelMap = computed(() => buildLabelMap(outputs.value))
   background: #dce3ea;
 }
 .mx-cell--on {
-  background: #81d4fa;
+  background: var(--cell-color, #1565c0);
 }
 .mx-cell--on:hover {
-  background: #4fc3f7;
+  background: var(--cell-color, #1565c0);
+  filter: brightness(1.15);
 }
 </style>
