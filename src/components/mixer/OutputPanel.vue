@@ -20,6 +20,7 @@ const { t } = useI18n()
 
 const {
   channelSections,
+  channelGroups,
   groupKey,
   groupTag,
   groupLabel,
@@ -55,6 +56,16 @@ const routeDialogOpen = computed({
   get: () => routeTarget.value !== null,
   set: (v) => { if (!v) routeTarget.value = null },
 })
+
+function openRoute(group) {
+  // 링크된 슬레이브(Analog 2)는 마스터(pairFirst) 그룹의 스테레오 팝업으로 리다이렉트
+  if (group.linked && !group.pairFirst) {
+    const master = channelGroups.value.find((g) => g.pairFirst && g.pairId === group.pairId)
+    routeTarget.value = master ?? group
+  } else {
+    routeTarget.value = group
+  }
+}
 
 const dspTargetId      = ref(null)
 const dspTargetRightId = ref(null)
@@ -182,7 +193,7 @@ function dspChipClass(group, ...keys) {
               class="route-btn q-mr-md"
               :class="{ 'route-btn--active': hasConnected(group) }"
               title="Routing"
-              @click="routeTarget = group"
+              @click="openRoute(group)"
             >
               <span
                 v-for="dg in dotGroups(group)"

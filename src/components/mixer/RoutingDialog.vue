@@ -29,6 +29,40 @@ const dialogOpen = computed({
   set: (v) => emit('update:modelValue', v),
 })
 
+// 아날로그 스테레오 링크된 첫 번째 채널 (pairFirst)도 스테레오 뷰로 처리
+const isLinkedStereo = computed(() =>
+  !!(props.routeTarget?.linked && props.routeTarget?.pairFirst),
+)
+const effectiveStereo = computed(() =>
+  !!(props.routeTarget?.stereo || isLinkedStereo.value),
+)
+
+function leftPort(target) {
+  if (!target) return null
+  return target.stereo ? target.left.port : (target.ch?.port ?? null)
+}
+
+function rightPort(target) {
+  if (!target) return null
+  return target.stereo ? target.right.port : (target.partner?.port ?? null)
+}
+
+const sectionLabelL = computed(() => {
+  const t = props.routeTarget
+  if (!t) return ''
+  if (t.stereo) return groupLabel(t) + ' L'
+  if (isLinkedStereo.value) return t.ch.label
+  return groupLabel(t)
+})
+
+const sectionLabelR = computed(() => {
+  const t = props.routeTarget
+  if (!t) return ''
+  if (t.stereo) return groupLabel(t) + ' R'
+  if (isLinkedStereo.value) return t.partner?.label ?? ''
+  return groupLabel(t)
+})
+
 function isConnected(inputPort, outputPort) {
   const entry = aoipState.connections.find((c) => c.port === inputPort)
   return entry ? entry.connections.includes(outputPort) : false
@@ -64,10 +98,10 @@ function toggleForGroup(inCh, outGroup) {
         <span class="item-title">{{ routeTarget ? groupLabel(routeTarget) : '' }}</span>
         <q-btn flat dense round icon="close" size="sm" v-close-popup />
       </q-card-section>
-      <!-- 스테레오 출력: L섹션(상단) / R섹션(하단) 분리 -->
-      <template v-if="routeTarget && routeTarget.stereo">
+      <!-- 스테레오 출력: L섹션(상단) / R섹션(하단) 분리 (스트림 스테레오 페어 + 아날로그 링크 모두 처리) -->
+      <template v-if="routeTarget && effectiveStereo">
         <q-card-section class="route-dialog-section-label">
-          {{ groupLabel(routeTarget) }} L
+          {{ sectionLabelL }}
         </q-card-section>
         <template v-for="(section, sIdx) in inputSections" :key="'L-sec-' + section.title">
           <q-separator v-if="sIdx > 0" class="route-section-sep" />
@@ -76,9 +110,9 @@ function toggleForGroup(inCh, outGroup) {
               <template v-if="inGroup.stereo">
                 <button
                   class="route-ch-btn"
-                  :class="{ active: isConnected(inGroup.left.port, routeTarget.left.port) }"
+                  :class="{ active: isConnected(inGroup.left.port, leftPort(routeTarget)) }"
                   :style="{ '--ch-color': chColor(inGroup.left) }"
-                  @click="toggleConnection(inGroup.left.port, routeTarget.left.port)"
+                  @click="toggleConnection(inGroup.left.port, leftPort(routeTarget))"
                 >
                   <span class="route-ch-tag" :style="{ background: chColor(inGroup.left) }">
                     {{ typeTag(inGroup.left.label).text }}
@@ -87,9 +121,9 @@ function toggleForGroup(inCh, outGroup) {
                 </button>
                 <button
                   class="route-ch-btn"
-                  :class="{ active: isConnected(inGroup.right.port, routeTarget.left.port) }"
+                  :class="{ active: isConnected(inGroup.right.port, leftPort(routeTarget)) }"
                   :style="{ '--ch-color': chColor(inGroup.right) }"
-                  @click="toggleConnection(inGroup.right.port, routeTarget.left.port)"
+                  @click="toggleConnection(inGroup.right.port, leftPort(routeTarget))"
                 >
                   <span class="route-ch-tag" :style="{ background: chColor(inGroup.right) }">
                     {{ typeTag(inGroup.right.label).text }}
@@ -100,9 +134,9 @@ function toggleForGroup(inCh, outGroup) {
               <template v-else>
                 <button
                   class="route-ch-btn"
-                  :class="{ active: isConnected(inGroup.ch.port, routeTarget.left.port) }"
+                  :class="{ active: isConnected(inGroup.ch.port, leftPort(routeTarget)) }"
                   :style="{ '--ch-color': chColor(inGroup.ch) }"
-                  @click="toggleConnection(inGroup.ch.port, routeTarget.left.port)"
+                  @click="toggleConnection(inGroup.ch.port, leftPort(routeTarget))"
                 >
                   <span class="route-ch-tag" :style="{ background: chColor(inGroup.ch) }">
                     {{ typeTag(inGroup.ch.label).text }}
@@ -115,7 +149,7 @@ function toggleForGroup(inCh, outGroup) {
         </template>
         <q-separator />
         <q-card-section class="route-dialog-section-label">
-          {{ groupLabel(routeTarget) }} R
+          {{ sectionLabelR }}
         </q-card-section>
         <template v-for="(section, sIdx) in inputSections" :key="'R-sec-' + section.title">
           <q-separator v-if="sIdx > 0" class="route-section-sep" />
@@ -124,9 +158,9 @@ function toggleForGroup(inCh, outGroup) {
               <template v-if="inGroup.stereo">
                 <button
                   class="route-ch-btn"
-                  :class="{ active: isConnected(inGroup.left.port, routeTarget.right.port) }"
+                  :class="{ active: isConnected(inGroup.left.port, rightPort(routeTarget)) }"
                   :style="{ '--ch-color': chColor(inGroup.left) }"
-                  @click="toggleConnection(inGroup.left.port, routeTarget.right.port)"
+                  @click="toggleConnection(inGroup.left.port, rightPort(routeTarget))"
                 >
                   <span class="route-ch-tag" :style="{ background: chColor(inGroup.left) }">
                     {{ typeTag(inGroup.left.label).text }}
@@ -135,9 +169,9 @@ function toggleForGroup(inCh, outGroup) {
                 </button>
                 <button
                   class="route-ch-btn"
-                  :class="{ active: isConnected(inGroup.right.port, routeTarget.right.port) }"
+                  :class="{ active: isConnected(inGroup.right.port, rightPort(routeTarget)) }"
                   :style="{ '--ch-color': chColor(inGroup.right) }"
-                  @click="toggleConnection(inGroup.right.port, routeTarget.right.port)"
+                  @click="toggleConnection(inGroup.right.port, rightPort(routeTarget))"
                 >
                   <span class="route-ch-tag" :style="{ background: chColor(inGroup.right) }">
                     {{ typeTag(inGroup.right.label).text }}
@@ -148,9 +182,9 @@ function toggleForGroup(inCh, outGroup) {
               <template v-else>
                 <button
                   class="route-ch-btn"
-                  :class="{ active: isConnected(inGroup.ch.port, routeTarget.right.port) }"
+                  :class="{ active: isConnected(inGroup.ch.port, rightPort(routeTarget)) }"
                   :style="{ '--ch-color': chColor(inGroup.ch) }"
-                  @click="toggleConnection(inGroup.ch.port, routeTarget.right.port)"
+                  @click="toggleConnection(inGroup.ch.port, rightPort(routeTarget))"
                 >
                   <span class="route-ch-tag" :style="{ background: chColor(inGroup.ch) }">
                     {{ typeTag(inGroup.ch.label).text }}
