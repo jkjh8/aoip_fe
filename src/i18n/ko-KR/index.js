@@ -37,6 +37,7 @@ export default {
   },
 
   nav: {
+    home: '믹서',
     audioMixer: '오디오 믹서',
     streaming: '스트리밍 설정',
     aes67: 'AES67 소스/싱크',

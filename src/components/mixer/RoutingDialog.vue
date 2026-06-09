@@ -7,6 +7,25 @@ import { useChannelPanel } from 'src/composables/useChannelPanel'
 const aoipState = useAoipStore()
 const { channelSections: inputSections, groupLabel, groupKey, typeTag } = useChannelPanel('input')
 
+const LOCAL_TITLES = new Set(['Analog', 'USB'])
+const mergedInputSections = computed(() => {
+  const result = []
+  let localGroups = []
+  for (const sec of inputSections.value) {
+    if (LOCAL_TITLES.has(sec.title)) {
+      localGroups.push(...sec.groups)
+    } else {
+      if (localGroups.length) {
+        result.push({ title: 'Local', groups: localGroups })
+        localGroups = []
+      }
+      result.push(sec)
+    }
+  }
+  if (localGroups.length) result.push({ title: 'Local', groups: localGroups })
+  return result
+})
+
 function chColor(ch) {
   return typeTag(ch.label).color
 }
@@ -30,12 +49,8 @@ const dialogOpen = computed({
 })
 
 // 아날로그 스테레오 링크된 첫 번째 채널 (pairFirst)도 스테레오 뷰로 처리
-const isLinkedStereo = computed(() =>
-  !!(props.routeTarget?.linked && props.routeTarget?.pairFirst),
-)
-const effectiveStereo = computed(() =>
-  !!(props.routeTarget?.stereo || isLinkedStereo.value),
-)
+const isLinkedStereo = computed(() => !!(props.routeTarget?.linked && props.routeTarget?.pairFirst))
+const effectiveStereo = computed(() => !!(props.routeTarget?.stereo || isLinkedStereo.value))
 
 function leftPort(target) {
   if (!target) return null
@@ -69,10 +84,15 @@ function isConnected(inputPort, outputPort) {
 }
 
 function toggleConnection(inputPort, outputPort) {
+  console.log('[USB-dbg] toggleConnection:', inputPort, '->', outputPort)
   if (isConnected(inputPort, outputPort)) {
-    socket.emit('route:remove', { src: inputPort, dst: outputPort })
+    socket.emit('route:remove', { src: inputPort, dst: outputPort }, (res) => {
+      console.log('[USB-dbg] route:remove res:', res)
+    })
   } else {
-    socket.emit('route:add', { src: inputPort, dst: outputPort })
+    socket.emit('route:add', { src: inputPort, dst: outputPort }, (res) => {
+      console.log('[USB-dbg] route:add res:', res)
+    })
   }
 }
 
@@ -94,18 +114,21 @@ function toggleForGroup(inCh, outGroup) {
 <template>
   <q-dialog v-model="dialogOpen">
     <q-card class="route-dialog">
-      <q-card-section class="route-dialog-header">
+      <q-card-section class="row justify-between items-center">
         <span class="item-title">{{ routeTarget ? groupLabel(routeTarget) : '' }}</span>
         <q-btn flat dense round icon="close" size="sm" v-close-popup />
       </q-card-section>
-      <!-- 스테레오 출력: L섹션(상단) / R섹션(하단) 분리 (스트림 스테레오 페어 + 아날로그 링크 모두 처리) -->
+      <q-separator color="grey-6" />
+      <!-- 스테레오 출력: L섹션(상단) / R섹션(하단) -->
       <template v-if="routeTarget && effectiveStereo">
-        <q-card-section class="route-dialog-section-label">
-          {{ sectionLabelL }}
-        </q-card-section>
-        <template v-for="(section, sIdx) in inputSections" :key="'L-sec-' + section.title">
-          <q-separator v-if="sIdx > 0" class="route-section-sep" />
-          <q-card-section class="route-dialog-body">
+        <q-card-section class="text-uppercase text-grey-10">{{ sectionLabelL }}</q-card-section>
+
+        <template v-for="(section, sIdx) in mergedInputSections" :key="'L-sec-' + section.title">
+          <q-separator inset v-if="sIdx" />
+          <q-card-section
+            class="q-py-sm q-px-md"
+            style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px"
+          >
             <template v-for="inGroup in section.groups" :key="'L-' + groupKey(inGroup)">
               <template v-if="inGroup.stereo">
                 <button
@@ -114,9 +137,9 @@ function toggleForGroup(inCh, outGroup) {
                   :style="{ '--ch-color': chColor(inGroup.left) }"
                   @click="toggleConnection(inGroup.left.port, leftPort(routeTarget))"
                 >
-                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.left) }">
-                    {{ typeTag(inGroup.left.label).text }}
-                  </span>
+                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.left) }">{{
+                    typeTag(inGroup.left.label).text
+                  }}</span>
                   <span class="route-ch-name">{{ groupLabel(inGroup) }} L</span>
                 </button>
                 <button
@@ -125,9 +148,9 @@ function toggleForGroup(inCh, outGroup) {
                   :style="{ '--ch-color': chColor(inGroup.right) }"
                   @click="toggleConnection(inGroup.right.port, leftPort(routeTarget))"
                 >
-                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.right) }">
-                    {{ typeTag(inGroup.right.label).text }}
-                  </span>
+                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.right) }">{{
+                    typeTag(inGroup.right.label).text
+                  }}</span>
                   <span class="route-ch-name">{{ groupLabel(inGroup) }} R</span>
                 </button>
               </template>
@@ -138,22 +161,23 @@ function toggleForGroup(inCh, outGroup) {
                   :style="{ '--ch-color': chColor(inGroup.ch) }"
                   @click="toggleConnection(inGroup.ch.port, leftPort(routeTarget))"
                 >
-                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.ch) }">
-                    {{ typeTag(inGroup.ch.label).text }}
-                  </span>
+                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.ch) }">{{
+                    typeTag(inGroup.ch.label).text
+                  }}</span>
                   <span class="route-ch-name">{{ groupLabel(inGroup) }}</span>
                 </button>
               </template>
             </template>
           </q-card-section>
         </template>
-        <q-separator />
-        <q-card-section class="route-dialog-section-label">
-          {{ sectionLabelR }}
-        </q-card-section>
-        <template v-for="(section, sIdx) in inputSections" :key="'R-sec-' + section.title">
-          <q-separator v-if="sIdx > 0" class="route-section-sep" />
-          <q-card-section class="route-dialog-body">
+        <q-separator color="grey-6" />
+        <q-card-section class="text-uppercase text-grey-10">{{ sectionLabelR }}</q-card-section>
+        <template v-for="(section, sIdx) in mergedInputSections" :key="'R-sec-' + section.title">
+          <q-separator v-if="sIdx" inset />
+          <q-card-section
+            class="q-pa-md"
+            style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px"
+          >
             <template v-for="inGroup in section.groups" :key="'R-' + groupKey(inGroup)">
               <template v-if="inGroup.stereo">
                 <button
@@ -162,9 +186,9 @@ function toggleForGroup(inCh, outGroup) {
                   :style="{ '--ch-color': chColor(inGroup.left) }"
                   @click="toggleConnection(inGroup.left.port, rightPort(routeTarget))"
                 >
-                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.left) }">
-                    {{ typeTag(inGroup.left.label).text }}
-                  </span>
+                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.left) }">{{
+                    typeTag(inGroup.left.label).text
+                  }}</span>
                   <span class="route-ch-name">{{ groupLabel(inGroup) }} L</span>
                 </button>
                 <button
@@ -173,9 +197,9 @@ function toggleForGroup(inCh, outGroup) {
                   :style="{ '--ch-color': chColor(inGroup.right) }"
                   @click="toggleConnection(inGroup.right.port, rightPort(routeTarget))"
                 >
-                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.right) }">
-                    {{ typeTag(inGroup.right.label).text }}
-                  </span>
+                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.right) }">{{
+                    typeTag(inGroup.right.label).text
+                  }}</span>
                   <span class="route-ch-name">{{ groupLabel(inGroup) }} R</span>
                 </button>
               </template>
@@ -186,9 +210,9 @@ function toggleForGroup(inCh, outGroup) {
                   :style="{ '--ch-color': chColor(inGroup.ch) }"
                   @click="toggleConnection(inGroup.ch.port, rightPort(routeTarget))"
                 >
-                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.ch) }">
-                    {{ typeTag(inGroup.ch.label).text }}
-                  </span>
+                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.ch) }">{{
+                    typeTag(inGroup.ch.label).text
+                  }}</span>
                   <span class="route-ch-name">{{ groupLabel(inGroup) }}</span>
                 </button>
               </template>
@@ -199,9 +223,12 @@ function toggleForGroup(inCh, outGroup) {
 
       <!-- 모노 출력: 단일 섹션 -->
       <template v-else>
-        <template v-for="(section, sIdx) in inputSections" :key="'M-sec-' + section.title">
-          <q-separator v-if="sIdx > 0" class="route-section-sep" />
-          <q-card-section class="route-dialog-body">
+        <template v-for="(section, sIdx) in mergedInputSections" :key="'M-sec-' + section.title">
+          <q-separator v-if="sIdx" inset />
+          <q-card-section
+            class="q-pa-md"
+            style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px"
+          >
             <template v-for="inGroup in section.groups" :key="groupKey(inGroup)">
               <template v-if="inGroup.stereo">
                 <button
@@ -210,9 +237,9 @@ function toggleForGroup(inCh, outGroup) {
                   :style="{ '--ch-color': chColor(inGroup.left) }"
                   @click="routeTarget && toggleForGroup(inGroup.left, routeTarget)"
                 >
-                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.left) }">
-                    {{ typeTag(inGroup.left.label).text }}
-                  </span>
+                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.left) }">{{
+                    typeTag(inGroup.left.label).text
+                  }}</span>
                   <span class="route-ch-name">{{ groupLabel(inGroup) }} L</span>
                 </button>
                 <button
@@ -221,9 +248,9 @@ function toggleForGroup(inCh, outGroup) {
                   :style="{ '--ch-color': chColor(inGroup.right) }"
                   @click="routeTarget && toggleForGroup(inGroup.right, routeTarget)"
                 >
-                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.right) }">
-                    {{ typeTag(inGroup.right.label).text }}
-                  </span>
+                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.right) }">{{
+                    typeTag(inGroup.right.label).text
+                  }}</span>
                   <span class="route-ch-name">{{ groupLabel(inGroup) }} R</span>
                 </button>
               </template>
@@ -234,9 +261,9 @@ function toggleForGroup(inCh, outGroup) {
                   :style="{ '--ch-color': chColor(inGroup.ch) }"
                   @click="routeTarget && toggleForGroup(inGroup.ch, routeTarget)"
                 >
-                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.ch) }">
-                    {{ typeTag(inGroup.ch.label).text }}
-                  </span>
+                  <span class="route-ch-tag" :style="{ background: chColor(inGroup.ch) }">{{
+                    typeTag(inGroup.ch.label).text
+                  }}</span>
                   <span class="route-ch-name">{{ groupLabel(inGroup) }}</span>
                 </button>
               </template>
@@ -255,13 +282,6 @@ function toggleForGroup(inCh, outGroup) {
   max-width: 720px;
   margin: auto;
 }
-.route-dialog-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 14px 8px;
-  border-bottom: 1px solid #e4e6ea;
-}
 .route-dialog-title {
   font-size: 13px;
   font-weight: 700;
@@ -274,12 +294,6 @@ function toggleForGroup(inCh, outGroup) {
   letter-spacing: 1px;
   text-transform: uppercase;
   padding: 8px 14px 4px;
-}
-.route-dialog-body {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  padding: 14px;
 }
 .route-ch-btn {
   display: flex;

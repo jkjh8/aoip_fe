@@ -21,7 +21,7 @@ export const useAoipStore = defineStore('aoip', {
   }),
 
   getters: {
-    filteredInputs:  (state) => state.channels.inputs.filter((ch) => ch.active !== false),
-    filteredOutputs: (state) => state.channels.outputs.filter((ch) => ch.active !== false),
+    filteredInputs:  (state) => state.channels.inputs,
+    filteredOutputs: (state) => state.channels.outputs,
   },
 })

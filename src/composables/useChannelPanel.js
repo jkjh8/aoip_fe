@@ -36,7 +36,7 @@ export function useChannelPanel(channelType) {
 
   function hasDsp(group) {
     const ch = group.stereo ? group.left : group.ch
-    return ch?.dsp != null && ch?.bypassDsp !== true
+    return ch?.dsp != null
   }
 
   function isEqActive(group) {
@@ -48,6 +48,7 @@ export function useChannelPanel(channelType) {
   function getChannelType(label) {
     const l = label.toLowerCase()
     if (l.includes('analog')) return 'analog'
+    if (l.includes('usb')) return 'usb'
     if (l.includes('stream')) return 'stream'
     if (l.includes('aes67')) return 'aes67'
     return 'other'
@@ -57,20 +58,21 @@ export function useChannelPanel(channelType) {
     analog: { title: 'Analog', color: '#1976d2' },
     stream: { title: 'Stream', color: '#2e7d32' },
     aes67:  { title: 'AES67',  color: '#7b1fa2' },
+    usb:    { title: 'USB',    color: '#f57c00' },
     other:  { title: 'Other',  color: '#546e7a' },
   }
 
   const channelSections = computed(() => {
     const chs = channels.value
-    const typeMap = { analog: [], stream: [], aes67: [], other: [] }
+    const typeMap = { analog: [], stream: [], aes67: [], usb: [], other: [] }
     for (const ch of chs) typeMap[getChannelType(ch.label)].push(ch)
 
     const sections = []
-    for (const type of ['analog', 'stream', 'aes67', 'other']) {
+    for (const type of ['analog', 'usb', 'stream', 'aes67', 'other']) {
       const typeChs = typeMap[type]
       if (!typeChs.length) continue
       const groups = []
-      if (type === 'stream') {
+      if (type === 'stream' || type === 'usb') {
         let i = 0
         while (i < typeChs.length) {
           const ch = typeChs[i]
@@ -104,6 +106,7 @@ export function useChannelPanel(channelType) {
   function typeTag(label) {
     const l = label.toLowerCase()
     if (l.includes('analog')) return { text: 'ANA', color: '#1976d2' }
+    if (l.includes('usb')) return { text: 'USB', color: '#f57c00' }
     if (l.includes('aes67')) return { text: 'AES', color: '#7b1fa2' }
     if (l.includes('stream')) return { text: 'STR', color: '#2e7d32' }
     return { text: label.substring(0, 3).toUpperCase(), color: '#546e7a' }

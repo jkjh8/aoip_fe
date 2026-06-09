@@ -58,6 +58,10 @@ const routeDialogOpen = computed({
 })
 
 function openRoute(group) {
+  console.log('[USB-dbg] openRoute:', JSON.stringify({
+    stereo: group.stereo, linked: group.linked, pairFirst: group.pairFirst,
+    leftPort: group.left?.port, rightPort: group.right?.port, chPort: group.ch?.port
+  }))
   // 링크된 슬레이브(Analog 2)는 마스터(pairFirst) 그룹의 스테레오 팝업으로 리다이렉트
   if (group.linked && !group.pairFirst) {
     const master = channelGroups.value.find((g) => g.pairFirst && g.pairId === group.pairId)
@@ -65,6 +69,7 @@ function openRoute(group) {
   } else {
     routeTarget.value = group
   }
+  console.log('[USB-dbg] routeTarget set, dialogOpen:', routeTarget.value !== null)
 }
 
 const dspTargetId      = ref(null)
@@ -89,8 +94,8 @@ function isConnected(inputPort, outputPort) {
   return entry ? entry.connections.includes(outputPort) : false
 }
 
-const TYPE_ORDER = ['analog', 'stream', 'aes67', 'other']
-const TYPE_COLS  = { analog: 4, stream: 4, aes67: 4, other: 4 }
+const TYPE_ORDER = ['analog', 'usb', 'stream', 'aes67', 'other']
+const TYPE_COLS  = { analog: 4, usb: 4, stream: 4, aes67: 4, other: 4 }
 
 function dotGroups(outGroup) {
   const port = outGroup.stereo ? outGroup.left.port : outGroup.ch.port

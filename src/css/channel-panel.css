@@ -1,0 +1,233 @@
+/* Shared styles for InputPanelV, OutputPanelV */
+
+.card-header {
+  display: flex;
+  align-items: center;
+}
+.card-title {
+  font-size: 15px;
+  font-weight: 500;
+}
+.card-dir {
+  font-size: 11px;
+  color: #90a4ae;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.v-strips-wrap {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+}
+
+.v-strip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 72px;
+  flex-shrink: 0;
+  background: #fff;
+  gap: 4px;
+  transition: opacity 0.2s;
+}
+.v-strip:last-child {
+  border-right: none;
+}
+.v-strip--muted > *:not(.v-mute-btn) {
+  opacity: 0.35;
+}
+.v-strip--slave {
+  opacity: 0.5;
+}
+
+.v-tag {
+  font-size: 7px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.5px;
+  padding: 2px 5px;
+  border-radius: 2px;
+  width: 100%;
+  text-align: center;
+}
+
+.v-ch-name {
+  font-size: 10px;
+  font-weight: 700;
+  color: #37474f;
+  text-align: center;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.v-mode {
+  font-size: 7px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+.v-mode--st {
+  background: #e8eaf6;
+  color: #3949ab;
+}
+.v-mode--mono {
+  background: #f5f5f5;
+  color: #9e9e9e;
+}
+
+.v-dsp-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  justify-content: center;
+  cursor: pointer;
+  padding: 2px 0;
+}
+.v-dsp-placeholder {
+  height: 32px;
+}
+.v-dchip {
+  width: 28px;
+  text-align: center;
+  font-size: 6px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  padding: 1px 3px;
+  border-radius: 2px;
+  border: 1px solid #d0d8e0;
+  background: #f5f7fa;
+  color: #90a4ae;
+}
+.v-dsp-bar:hover .v-dchip {
+  border-color: #90a4ae;
+  color: #546e7a;
+}
+.v-dchip.dchip--on {
+  background: #e8f5e9;
+  border-color: #81c78455;
+  color: #388e3c;
+}
+.v-dchip.dchip--warn {
+  background: #fff3e0;
+  border-color: #f57c0055;
+  color: #e65100;
+}
+
+.v-fader-area {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  height: 160px;
+  gap: 2px;
+}
+
+.v-scale {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 7px;
+  font-family: 'Courier New', monospace;
+  color: #b0bec5;
+  padding: 0 2px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.v-fader-col {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  flex: 1;
+}
+
+.v-thumb-tip {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 7px;
+  font-family: 'Courier New', monospace;
+  color: #fff;
+  background: #1565c0;
+  border-radius: 2px;
+  padding: 1px 3px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.v-fader {
+  height: 100%;
+  min-height: 140px;
+}
+
+.v-db-val {
+  font-size: 9px;
+  font-family: 'Courier New', monospace;
+  color: #1565c0;
+  text-align: center;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 2px;
+  border: 1px solid transparent;
+  width: 100%;
+  white-space: nowrap;
+}
+.v-db-val:hover {
+  border-color: #90caf9;
+  background: #e3f2fd;
+}
+
+.v-db-input {
+  width: 100%;
+  font-size: 9px;
+  font-family: 'Courier New', monospace;
+  color: #1565c0;
+  background: #e3f2fd;
+  border: 1px solid #1565c0;
+  border-radius: 2px;
+  padding: 2px 3px;
+  outline: none;
+  text-align: center;
+}
+
+.v-mute-btn {
+  width: 100%;
+}
+
+.v-link-btn {
+  background: #f5f7fa;
+  border: 1px solid #b0bec5;
+  border-radius: 3px;
+  padding: 2px 6px;
+  cursor: pointer;
+  font-size: 8px;
+  font-weight: 600;
+  color: #78909c;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+.v-link-btn:hover {
+  background: #e3f2fd;
+  border-color: #90caf9;
+  color: #1976d2;
+}
+.v-link-btn--linked {
+  background: #e3f2fd;
+  border-color: #90caf9;
+  color: #1565c0;
+  font-weight: 700;
+}
+.v-link-btn--linked:hover {
+  background: #ffebee;
+  border-color: #ef9a9a;
+  color: #c62828;
+}

@@ -2,6 +2,8 @@ import { defineBoot } from '#q-app/wrappers'
 import { createI18n } from 'vue-i18n'
 import { Quasar } from 'quasar'
 import messages from 'src/i18n'
+import quasarEnUS from 'quasar/lang/en-US'
+import quasarKoKR from 'quasar/lang/ko-KR'
 
 const STORAGE_KEY = 'aoip.locale'
 const DEFAULT_LOCALE = 'en-US'
@@ -26,14 +28,8 @@ export const i18n = createI18n({
   messages,
 })
 
-async function applyQuasarLang(locale) {
-  try {
-    const code = locale === 'ko-KR' ? 'ko-KR' : 'en-US'
-    const lang = await import(`quasar/lang/${code}.mjs`)
-    Quasar.lang.set(lang.default)
-  } catch {
-    // ignore — fall back to default
-  }
+function applyQuasarLang(locale) {
+  Quasar.lang.set(locale === 'ko-KR' ? quasarKoKR : quasarEnUS)
 }
 
 export function setLocale(locale) {
