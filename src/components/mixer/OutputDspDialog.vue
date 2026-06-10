@@ -1,7 +1,8 @@
 <script setup>
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { socket } from 'src/boot/socket'
+import { useAoipStore } from 'src/stores/aoip'
 import 'src/css/dsp-dialog.css'
 import EqPanel from './dsp/EqPanel.vue'
 import GateTab from './dsp/GateTab.vue'
@@ -19,6 +20,7 @@ const props = defineProps({
 })
 const { t } = useI18n()
 const emit = defineEmits(['update:modelValue'])
+const aoipStore = useAoipStore()
 
 // ── Stereo link ──────────────────────────────────────────────
 const linked = ref(true)
@@ -44,22 +46,15 @@ const limEnabled = computed(() => limRef.value?.enabled ?? false)
 const activeTab = ref('eq')
 
 // ── GR ───────────────────────────────────────────────────────
-const gateGrDb = ref(0)
-const compGrDb = ref(0)
-const limGrDb = ref(0)
-
-function onGr(data) {
-  if (!props.modelValue || !props.channel) return
-  const out = data.outputs?.find((o) => o.ch === props.channel.id)
-  gateGrDb.value = out ? -(out.gate ?? 0) : 0
-  compGrDb.value = out ? -(out.comp ?? 0) : 0
-  limGrDb.value = out ? -(out.lim ?? 0) : 0
-}
-socket.on('gr', onGr)
-onUnmounted(() => {
-  socket.off('gr', onGr)
-  socket.emit('dsp:gr:disable')
-})
+const gateGrDb = computed(() =>
+  aoipStore.gr.outputs.find((e) => e.ch === props.channel?.id)?.gate ?? 0,
+)
+const compGrDb = computed(() =>
+  aoipStore.gr.outputs.find((e) => e.ch === props.channel?.id)?.comp ?? 0,
+)
+const limGrDb = computed(() =>
+  aoipStore.gr.outputs.find((e) => e.ch === props.channel?.id)?.lim ?? 0,
+)
 
 function initFromChannel() {
   levelRef.value?.init()
@@ -73,9 +68,6 @@ watch(
       socket.emit('dsp:gr:enable')
     } else {
       socket.emit('dsp:gr:disable')
-      gateGrDb.value = 0
-      compGrDb.value = 0
-      limGrDb.value = 0
     }
   },
 )

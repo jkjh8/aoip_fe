@@ -73,12 +73,18 @@ export function useChannelPanel(channelType) {
       if (!typeChs.length) continue
       const groups = []
       if (type === 'stream' || type === 'usb') {
+        const streamsList = type === 'stream'
+          ? (channelType === 'input' ? (aoipState.streams?.inputs ?? []) : (aoipState.streams?.outputs ?? []))
+          : []
         let i = 0
+        let streamIdx = 0
         while (i < typeChs.length) {
           const ch = typeChs[i]
           const next = typeChs[i + 1]
-          if (next) { groups.push({ stereo: true, left: ch, right: next }); i += 2 }
-          else       { groups.push({ stereo: false, ch }); i++ }
+          const streamRunning = type === 'stream' ? ((streamsList[streamIdx]?.stats?.bitrateKbps ?? 0) > 0) : null
+          if (next) { groups.push({ stereo: true, left: ch, right: next, streamRunning }); i += 2 }
+          else       { groups.push({ stereo: false, ch, streamRunning }); i++ }
+          streamIdx++
         }
       } else if (type === 'analog') {
         const linked = isI2sLinked.value

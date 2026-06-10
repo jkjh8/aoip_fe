@@ -145,6 +145,23 @@ function dspEnabled(group) {
                 <span class="v-dchip" :class="mainCh(group)?.dsp?.comp?.enabled ? 'dchip--on' : ''"
                   >COMP</span
                 >
+                <div
+                  v-if="group.streamRunning !== null && group.streamRunning !== undefined"
+                  class="v-stream-lamp-dot"
+                  :class="group.streamRunning ? 'v-stream-lamp--on' : 'v-stream-lamp--off'"
+                >
+                  <q-tooltip>{{ group.streamRunning ? 'RTP Running' : 'RTP Offline' }}</q-tooltip>
+                </div>
+              </div>
+              <div
+                v-else-if="group.streamRunning !== null && group.streamRunning !== undefined"
+                class="v-dsp-placeholder v-stream-lamp-area"
+              >
+                <div
+                  class="v-stream-lamp-dot"
+                  :class="group.streamRunning ? 'v-stream-lamp--on' : 'v-stream-lamp--off'"
+                />
+                <q-tooltip>{{ group.streamRunning ? 'RTP Running' : 'RTP Offline' }}</q-tooltip>
               </div>
               <div v-else class="v-dsp-placeholder" />
 

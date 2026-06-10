@@ -148,7 +148,7 @@ async function applyRtpOut({ protocol, codec, bitrate, sampleRate, channels, hos
           <q-icon
             :name="s.type === 'rtp_in' ? 'download' : 'upload'"
             size="sm"
-            :color="s.type === 'rtp_in' ? 'green-7' : 'blue-7'"
+            :color="s.type === 'rtp_in' ? (s.stats?.bitrateKbps > 0 ? 'green-7' : 'grey-5') : 'blue-7'"
             class="q-mr-xs"
           />
           <span class="item-title">{{ detail?.name ?? s.client }}</span>

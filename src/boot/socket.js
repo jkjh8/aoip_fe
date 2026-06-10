@@ -15,6 +15,7 @@ export const socket = io(serverUrl, {
   timeout: 20000,
 })
 
+
 function mergeDsp(newChannels, store) {
   for (const ch of newChannels.inputs ?? []) {
     const existing = store.channels.inputs.find((c) => c.id === ch.id)
@@ -38,6 +39,7 @@ export default defineBoot(({ app, pinia }) => {
     socket.emit('dsp:mode:get', (res) => {
       if (res?.ok && res.mode) store.dspMode = res.mode
     })
+
   })
   socket.on('disconnect', () => {
     store.connected = false
@@ -98,14 +100,34 @@ export default defineBoot(({ app, pinia }) => {
       ch.dsp[key] = params
     }
   })
-  socket.on('levels', (data) => {
-    for (const { id, level } of data.inputs ?? []) {
+  socket.on('levels', (buf) => {
+    const v = new DataView(buf instanceof ArrayBuffer ? buf : buf.buffer)
+    const n = v.getUint8(0), m = v.getUint8(1)
+    let o = 2
+    for (let i = 0; i < n; i++) {
+      const id = v.getUint8(o++)
+      const dB = v.getUint8(o++) / 2 - 120
       const ch = store.channels.inputs.find((c) => c.id === id)
-      if (ch) ch.level = level
+      if (ch) ch.level = dB
     }
-    for (const { id, level } of data.outputs ?? []) {
+    for (let i = 0; i < m; i++) {
+      const id = v.getUint8(o++)
+      const dB = v.getUint8(o++) / 2 - 120
       const ch = store.channels.outputs.find((c) => c.id === id)
-      if (ch) ch.level = level
+      if (ch) ch.level = dB
     }
+  })
+  socket.on('gr', (buf) => {
+    const v = new DataView(buf instanceof ArrayBuffer ? buf : buf.buffer)
+    const n = v.getUint8(0), m = v.getUint8(1)
+    let o = 2
+    const inputs = [], outputs = []
+    for (let i = 0; i < n; i++) inputs.push({
+      ch: v.getUint8(o++), gate: v.getUint8(o++) / 2, comp: v.getUint8(o++) / 2,
+    })
+    for (let i = 0; i < m; i++) outputs.push({
+      ch: v.getUint8(o++), gate: v.getUint8(o++) / 2, comp: v.getUint8(o++) / 2, lim: v.getUint8(o++) / 2,
+    })
+    store.gr = { inputs, outputs }
   })
 })

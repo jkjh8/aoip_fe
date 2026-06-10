@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps({
   channels: {
@@ -25,6 +25,7 @@ function levelColor(level) {
 }
 
 
+// ── Peak hold ──────────────────────────────────────────────
 const peakLevels = ref([])
 const peakTimers = []
 
@@ -37,16 +38,41 @@ watch(
       if (peakLevels.value[i] == null || lvl >= peakLevels.value[i]) {
         peakLevels.value[i] = lvl
         clearTimeout(peakTimers[i])
-        peakTimers[i] = setTimeout(() => {
-          peakLevels.value[i] = null
-        }, 2000)
+        peakTimers[i] = setTimeout(() => { peakLevels.value[i] = null }, 2000)
       }
     })
   },
-  { deep: true }
+  { deep: true },
 )
 
-onUnmounted(() => peakTimers.forEach(clearTimeout))
+// ── Smooth levels (smooth attack + slow release) ────────────
+const RISE_DB_PER_SEC  = 60
+const DECAY_DB_PER_SEC = 20
+const smoothLevels = ref([])
+let rafId = null
+let lastTs = null
+
+function animate(ts) {
+  const dt = lastTs != null ? Math.min((ts - lastTs) / 1000, 0.1) : 0
+  lastTs = ts
+  smoothLevels.value = props.channels.map((ch, i) => {
+    const raw = ch.muted ? -100 : (ch.level ?? -100)
+    const cur = smoothLevels.value[i] ?? raw
+    if (raw > cur) return Math.min(raw, cur + RISE_DB_PER_SEC  * dt)
+    else           return Math.max(raw, cur - DECAY_DB_PER_SEC * dt)
+  })
+  rafId = requestAnimationFrame(animate)
+}
+
+onMounted(() => {
+  smoothLevels.value = props.channels.map((ch) => ch.level ?? -100)
+  rafId = requestAnimationFrame(animate)
+})
+
+onUnmounted(() => {
+  if (rafId) cancelAnimationFrame(rafId)
+  peakTimers.forEach(clearTimeout)
+})
 </script>
 
 <template>
@@ -79,8 +105,8 @@ onUnmounted(() => peakTimers.forEach(clearTimeout))
             style="width:18px;background:rgba(255,255,255,0.08);border-radius:3px;position:relative;overflow:hidden"
           >
             <div
-              style="position:absolute;bottom:0;left:0;right:0;border-radius:3px;transition:height 0.1s linear"
-              :style="`height:${levelPct(ch.level, ch.muted)}%;background:${levelColor(ch.level)}`"
+              style="position:absolute;bottom:0;left:0;right:0;border-radius:3px"
+              :style="`height:${levelPct(smoothLevels[i], ch.muted)}%;background:${levelColor(smoothLevels[i])}`"
             />
             <div
               v-if="peakLevels[i] != null"
@@ -123,7 +149,7 @@ onUnmounted(() => peakTimers.forEach(clearTimeout))
       >
         <div
           class="lm-fill"
-          :style="`height:${levelPct(ch.level, ch.muted)}%; background:${levelColor(ch.level)}`"
+          :style="`height:${levelPct(smoothLevels[i], ch.muted)}%; background:${levelColor(smoothLevels[i])}`"
         />
         <div
           v-if="peakLevels[i] != null"
@@ -176,7 +202,6 @@ onUnmounted(() => peakTimers.forEach(clearTimeout))
   left: 0;
   right: 0;
   border-radius: 2px;
-  transition: height 0.1s linear;
 }
 
 .lm-peak {

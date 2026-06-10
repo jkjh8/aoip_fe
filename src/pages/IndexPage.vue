@@ -26,6 +26,7 @@ const collapsed = ref({})
 function toggleCollapsed(type) {
   collapsed.value[type] = !collapsed.value[type]
 }
+
 </script>
 
 <template>

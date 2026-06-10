@@ -219,11 +219,6 @@ function dspEnabled(group) {
                   "
                   >LIM</span
                 >
-                <span
-                  v-if="mainCh(group)?.dsp?.lim?.enabled || mainCh(group)?.dsp?.limiter?.enabled"
-                  class="v-dchip dchip--on"
-                  >LIM</span
-                >
               </div>
               <div v-else class="v-dsp-placeholder" />
 

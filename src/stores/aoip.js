@@ -12,6 +12,7 @@ export const useAoipStore = defineStore('aoip', {
     streams:     {},
     connections: [],
     channels:    { inputs: [], outputs: [] },
+    gr:          { inputs: [], outputs: [] },
     dspMode:     { input: 'mono', output: 'mono' },
     rxStats:   {
       srcIp: null, srcPort: null, codec: null,
