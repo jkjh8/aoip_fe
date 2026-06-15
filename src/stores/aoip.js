@@ -22,7 +22,13 @@ export const useAoipStore = defineStore('aoip', {
   }),
 
   getters: {
-    filteredInputs:  (state) => state.channels.inputs,
-    filteredOutputs: (state) => state.channels.outputs,
+    filteredInputs: (state) => state.channels.inputs.filter((ch) => {
+      const l = ch.label.toLowerCase()
+      return !((l.includes('aes67') || l.includes('stream')) && ch.active === false)
+    }),
+    filteredOutputs: (state) => state.channels.outputs.filter((ch) => {
+      const l = ch.label.toLowerCase()
+      return !((l.includes('aes67') || l.includes('stream')) && ch.active === false)
+    }),
   },
 })
